@@ -21,11 +21,10 @@ describe('Config', () => {
 
   it('should validate required fields', () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
-    process.env.API_KEY = 'b'.repeat(64);
 
     const config = getConfig();
     expect(config.ENCRYPTION_KEY).toBeDefined();
-    expect(config.API_KEY).toBeDefined();
+    expect('API_KEY' in config).toBe(false);
   });
 
   it('should reject invalid ENCRYPTION_KEY length', () => {
