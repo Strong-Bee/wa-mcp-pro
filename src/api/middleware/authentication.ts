@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { getConfig } from '../../config/env.js';
 import { validateApiKey } from '../../security/index.js';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
@@ -6,21 +6,26 @@ import { AppError, ERROR_CODES } from '../../core/errors.js';
 export async function authMiddleware(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', async (request: FastifyRequest) => {
     const config = getConfig();
+    const authHeader = request.headers.authorization;
 
-    if (!config.API_KEY && config.NODE_ENV === 'development') {
+    // Local development remains convenient, but supplying a token always triggers validation.
+    if (!authHeader && config.NODE_ENV === 'development') {
+      request.apiKey = null;
       return;
     }
 
-    const authHeader = request.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const match = typeof authHeader === 'string'
+      ? /^Bearer\s+(.+)$/i.exec(authHeader.trim())
+      : null;
+
+    if (!match?.[1]) {
       throw new AppError(ERROR_CODES.MCP_AUTH_FAILED, 'Missing or invalid Authorization header', 401);
     }
 
-    const apiKey = authHeader.substring(7);
-    const validatedKey = await validateApiKey(apiKey);
+    const validatedKey = await validateApiKey(match[1].trim());
 
     if (!validatedKey) {
-      throw new AppError(ERROR_CODES.MCP_AUTH_FAILED, 'Invalid API key', 401);
+      throw new AppError(ERROR_CODES.MCP_AUTH_FAILED, 'Invalid or expired API key', 401);
     }
 
     request.apiKey = validatedKey;
