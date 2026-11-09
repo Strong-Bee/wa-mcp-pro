@@ -69,8 +69,9 @@ export async function createAPIServer(): Promise<FastifyInstance> {
     });
   });
 
-  await app.register(rateLimitMiddleware);
-  await app.register(authMiddleware);
+  // Register hooks on the root instance so they apply to every route below.
+  await rateLimitMiddleware(app);
+  await authMiddleware(app);
   await registerRoutes(app);
 
   if (config.NODE_ENV !== 'production') {
