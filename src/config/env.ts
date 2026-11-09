@@ -37,7 +37,7 @@ const envSchema = z.object({
   MEDIA_DIRECTORY: z.string().default('./storage/media'),
   LOG_DIRECTORY: z.string().default('./storage/logs'),
 
-  ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/, 'ENCRYPTION_KEY must be exactly 64 hexadecimal characters').optional(),
+  ENCRYPTION_KEY: z.preprocess((value) => value === '' ? undefined : value, z.string().regex(/^[a-fA-F0-9]{64}$/, 'ENCRYPTION_KEY must be exactly 64 hexadecimal characters').optional()),
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
