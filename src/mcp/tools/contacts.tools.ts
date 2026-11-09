@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -35,7 +35,7 @@ const getProfileSchema = z.object({
   jid: z.string().min(1),
 });
 
-export function registerContactTools(server: Server): void {
+export function registerContactTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
