@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -73,7 +73,7 @@ const searchSchema = z.object({
   limit: z.number().int().positive().max(100).default(50),
 });
 
-export function registerMessagingTools(server: Server): void {
+export function registerMessagingTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
