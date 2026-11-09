@@ -1,367 +1,389 @@
-![logo](./public/01-primary-logo.png)
+![WA-MCP Pro logo](./public/01-primary-logo.png)
 
 # WA-MCP Pro
 
 **Connect WhatsApp to Your AI Agents.**
 
-WA-MCP Pro is a production-ready WhatsApp MCP (Model Context Protocol) server that enables AI agents to interact with WhatsApp through standardized tools, resources, and prompts.
+WA-MCP Pro is a WhatsApp integration server built with [Baileys](https://github.com/WhiskeySockets/Baileys) and the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). It exposes WhatsApp account, messaging, contact, chat, group, and automation capabilities to compatible AI clients through MCP, with an accompanying REST API.
+
+> **Project status:** This repository is under active development. Review the current implementation and test it in a non-critical environment before using it in production.
+
+## Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
+- [Run modes](#run-modes)
+- [Connect an MCP client](#connect-an-mcp-client)
+- [REST API and OpenAPI](#rest-api-and-openapi)
+- [Docker](#docker)
+- [Development](#development)
+- [Skills](#skills)
+- [Security](#security)
+- [WhatsApp disclaimer](#whatsapp-disclaimer)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Overview
+
+WA-MCP Pro acts as a bridge between WhatsApp and AI applications. An MCP-compatible client can call the server's registered tools instead of implementing WhatsApp connectivity itself.
+
+The project includes:
+
+- MCP transports for local STDIO and remote Streamable HTTP.
+- A Fastify-based REST API.
+- WhatsApp connectivity and account/session management through Baileys.
+- Local SQLite-compatible storage through `@libsql/client`.
+- Messaging, media, contacts, chats, groups, and auto-reply functionality.
+- Configuration validation, logging, rate limiting, and API authentication components.
 
 ## Features
 
-### 🤖 AI Agent Integration
-- **MCP STDIO Transport** - Works with Claude Code, OpenCode, Cursor, and other MCP clients
-- **MCP Streamable HTTP** - Remote access via HTTP with authentication
-- **17 MCP Tools** - Complete WhatsApp operations (messaging, contacts, groups, automation)
-- **8 MCP Resources** - Real-time data access (status, chats, contacts, groups, metrics)
-- **5 MCP Prompts** - Pre-built workflows (assistant, composer, summarizer, support, group management)
+### MCP and AI integration
 
-### 📱 WhatsApp Features
-- **Multi-Account** - Manage multiple WhatsApp accounts simultaneously
-- **QR Code Authentication** - Standard WhatsApp Web login
-- **Pairing Code** - Mobile-friendly authentication
-- **Persistent Sessions** - Encrypted session storage with AES-256-GCM
-- **Auto-Reconnect** - Exponential backoff with jitter
-- **Full Messaging** - Text, images, videos, documents, audio, locations, contacts
-- **Group Management** - Create, manage participants, settings, invites
-- **Contact Management** - Search, verify, profile pictures
-- **Chat History** - Local message storage with search
+- STDIO transport for local MCP clients.
+- Streamable HTTP transport for remote MCP access.
+- MCP tools organized by connection, messaging, contacts, groups, chats, media, automation, and system operations.
 
-### ⚙️ Automation
-- **Keyword Triggers** - Respond to specific words
-- **Exact Match** - Precise message matching
-- **Regex Patterns** - Complex pattern matching
-- **Commands** - Slash command handling
-- **Cooldowns** - Rate limiting per user
-- **Safety Guards** - Opt-out detection, loop prevention, rate limiting
+### WhatsApp connectivity
 
-### 🔒 Security
-- **AES-256-GCM Encryption** - Session credentials encrypted at rest
-- **API Key Authentication** - Scrypt-hashed keys with scopes
-- **Role-Based Access** - Owner, Admin, Operator, Readonly roles
-- **Audit Logging** - Complete operation trail
-- **Input Validation** - Zod schemas for all inputs
-- **Secret Redaction** - Automatic log sanitization
+- QR-code and pairing-code connection flows.
+- Multiple account records.
+- Persistent session storage.
+- Connection status and reconnection handling.
 
-### 🐳 Deployment
-- **Docker Support** - Multi-stage build, non-root user
-- **Docker Compose** - Production-ready with volumes
-- **Health Checks** - Kubernetes-ready endpoints
-- **Windows & Linux** - Cross-platform support
+### Messaging and chat operations
 
-## Quick Start
+- Send and manage supported message types.
+- Work with contacts and chat history.
+- Retrieve chat and account information.
+- Manage WhatsApp groups and participants.
 
-### Prerequisites
-- Node.js 20+
-- pnpm 9+
-- WhatsApp account
+### Automation
 
-### Installation
+- Keyword, exact-match, regex, command, and scheduled automation patterns are represented in the project database and automation components.
+- Auto-reply rules can be managed through the available application interfaces.
+
+### API and operations
+
+- REST API powered by Fastify.
+- Health and operational endpoints.
+- Request validation and rate limiting.
+- Structured application logging.
+- Docker build and Compose configuration.
+
+## Architecture
+
+```text
+MCP Clients / Applications
+          |
+          +---------------------+
+          |                     |
+      MCP STDIO          MCP Streamable HTTP
+          |                     |
+          +----------+----------+
+                     |
+                  MCP Core
+                     |
+             Application Services
+        +------------+-------------+
+        |            |             |
+    WhatsApp       Automation    REST API
+    Services        Engine       (Fastify)
+        |
+   Baileys Client
+        |
+     WhatsApp
+
+       SQLite-compatible storage
+       Session / Media / Log files
+```
+
+## Requirements
+
+- Node.js 20 or newer.
+- pnpm 9 or newer (the repository declares pnpm 9 as its package manager).
+- A WhatsApp account for connecting and testing.
+- Docker Engine and Docker Compose (optional, for container deployment).
+
+## Getting started
+
+### 1. Clone the repository
 
 ```bash
-# Clone repository
-git clone <repository-url>
+git clone https://github.com/Strong-Bee/wa-mcp-pro.git
 cd wa-mcp-pro
+```
 
-# Install dependencies
+### 2. Install dependencies
+
+```bash
 corepack enable
 pnpm install
+```
 
-# Configure environment
+### 3. Create your environment file
+
+On macOS/Linux:
+
+```bash
 cp .env.example .env
-# Edit .env with your settings
+```
 
-# Setup database
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### 4. Configure security keys
+
+Generate two independent 32-byte (64-character hexadecimal) secrets. For example, with OpenSSL:
+
+```bash
+openssl rand -hex 32
+openssl rand -hex 32
+```
+
+Put the generated values in `.env`:
+
+```dotenv
+ENCRYPTION_KEY=your_64_character_hex_secret
+API_KEY=your_64_character_hex_secret
+```
+
+Do not reuse the same value for both variables. Keep these values private and do not commit your `.env` file.
+
+### 5. Build and initialize the database
+
+```bash
+pnpm build
 pnpm db:migrate
 pnpm db:seed
+```
 
-# Generate API key
-pnpm generate-api-key --name "My App" --permissions "accounts:read,messages:send"
+The application startup flow also runs migrations and database seeding. The explicit commands above are useful when preparing or inspecting the database separately.
 
-# Start server
+### 6. Start the server
+
+For local development:
+
+```bash
+pnpm dev
+```
+
+For a compiled build:
+
+```bash
 pnpm start
 ```
 
-### MCP Client Configuration
+The default MCP transport is `stdio`. The REST API listens on `http://127.0.0.1:3000` by default.
 
-#### Claude Code (STDIO)
+## Configuration
+
+All supported environment variables are defined and validated in `src/config/env.ts`. The complete template is available in [`.env.example`](.env.example).
+
+| Variable | Description | Default |
+|---|---|---|
+| `NODE_ENV` | Runtime environment: development, production, or test | `development` |
+| `APP_NAME` | Application name | `WA-MCP-Pro` |
+| `APP_VERSION` | Application version | `1.0.0` |
+| `HOST` | REST API bind address | `127.0.0.1` |
+| `PORT` | REST API port | `3000` |
+| `MCP_TRANSPORT` | MCP transport: `stdio`, `http`, or `hybrid` | `stdio` |
+| `MCP_HTTP_ENABLED` | HTTP transport configuration flag | `false` |
+| `MCP_HTTP_PORT` | MCP HTTP port setting | `3001` |
+| `DATABASE_URL` | Database location | `./storage/wa-mcp.db` |
+| `SESSION_DIRECTORY` | WhatsApp session directory | `./storage/sessions` |
+| `MEDIA_DIRECTORY` | Media storage directory | `./storage/media` |
+| `LOG_DIRECTORY` | Log directory | `./storage/logs` |
+| `ENCRYPTION_KEY` | Secret used for session encryption; at least 64 characters | Not set |
+| `API_KEY` | API authentication secret; at least 64 characters | Not set |
+| `LOG_LEVEL` | Logging verbosity | `info` |
+| `RATE_LIMIT_MAX` | Maximum requests in a rate-limit window | `100` |
+| `RATE_LIMIT_WINDOW` | Rate-limit window in milliseconds | `60000` |
+| `MAX_MEDIA_SIZE_MB` | Maximum media size in MB | `50` |
+| `WHATSAPP_AUTO_RECONNECT` | Enable automatic reconnection | `true` |
+| `WHATSAPP_RECONNECT_MAX_ATTEMPTS` | Maximum reconnection attempts | `10` |
+| `WHATSAPP_MESSAGE_HISTORY_LIMIT` | Message history limit | `10000` |
+
+> The configuration schema treats `ENCRYPTION_KEY` and `API_KEY` as optional values, but features that depend on them may require valid secrets. Set both explicitly for a secured deployment.
+
+## Run modes
+
+Set `MCP_TRANSPORT` in `.env` to select the MCP mode:
+
+| Value | Behavior |
+|---|---|
+| `stdio` | Starts the local STDIO MCP transport. |
+| `http` | Starts the Streamable HTTP MCP transport. |
+| `hybrid` | Starts both MCP transports. |
+
+The REST API is started by the application as well. The HTTP MCP endpoint is mounted at:
+
+```text
+http://127.0.0.1:3000/mcp
+```
+
+Adjust `HOST`, `PORT`, and `MCP_HTTP_PORT` in `.env` for your deployment. Verify the effective port and authentication behavior against the current server configuration before exposing it outside your machine.
+
+## Connect an MCP client
+
+Build the project first so that `dist/index.js` exists:
+
+```bash
+pnpm build
+```
+
+### Claude Code or another STDIO-compatible client
+
+Add a server entry to your MCP client configuration. Example:
+
 ```json
 {
   "mcpServers": {
     "wa-mcp-pro": {
       "command": "node",
-      "args": ["dist/index.js"],
+      "args": ["D:/mcp/wa-mcp-pro/dist/index.js"],
       "env": {
         "MCP_TRANSPORT": "stdio",
-        "DATABASE_URL": "./storage/wa-mcp.db"
+        "DATABASE_URL": "D:/mcp/wa-mcp-pro/storage/wa-mcp.db",
+        "SESSION_DIRECTORY": "D:/mcp/wa-mcp-pro/storage/sessions",
+        "ENCRYPTION_KEY": "YOUR_64_CHARACTER_HEX_SECRET"
       }
     }
   }
 }
 ```
 
-#### Remote HTTP
-```json
-{
-  "mcpServers": {
-    "wa-mcp-pro": {
-      "url": "http://localhost:3001/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}
+Replace the example paths with the actual absolute paths on your computer. Keep secrets out of shared configuration files and source control. If your MCP client supports environment-variable references, use those instead of hardcoding secrets.
+
+### Remote Streamable HTTP client
+
+Set `MCP_TRANSPORT=http` in the server environment and start WA-MCP Pro. Configure your MCP client to connect to:
+
+```text
+http://127.0.0.1:3000/mcp
 ```
 
-## Architecture
+Use the authentication mechanism configured by the server. For remote access, put the service behind HTTPS and a properly configured reverse proxy; do not expose an unauthenticated development instance to the public internet.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      AI Agents / Clients                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   STDIO     │  │    HTTP     │  │      REST API       │  │
-│  │   Transport │  │  Transport  │  │    (Fastify)        │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-└─────────┼────────────────┼─────────────────────┼─────────────┘
-          │                │                     │
-          └────────────────┼─────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │  MCP Core   │
-                    │  (Tools,    │
-                    │  Resources, │
-                    │  Prompts)   │
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────┐
-                    │  Services   │
-                    │  (Message,  │
-                    │  Contact,   │
-                    │  Chat,      │
-                    │  Group,     │
-                    │  Automation)│
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────┐
-                    │ Connection  │
-                    │  Manager    │
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────┐
-                    │   Baileys   │
-                    │  (WhatsApp  │
-                    │   Web)      │
-                    └─────────────┘
-```
+## REST API and OpenAPI
 
-## Available MCP Tools
+The REST API is implemented with Fastify. API routes are registered from `src/api/routes/`.
 
-### Connection
-| Tool | Description |
-|------|-------------|
-| `whatsapp_connect` | Connect an account |
-| `whatsapp_disconnect` | Disconnect account |
-| `whatsapp_logout` | Logout and remove session |
-| `whatsapp_get_status` | Get connection status |
-| `whatsapp_get_qr` | Get QR code |
-| `whatsapp_get_pairing_code` | Get pairing code |
-| `whatsapp_list_accounts` | List all accounts |
-| `whatsapp_create_account` | Create new account |
+In non-production mode, the application also registers its OpenAPI documentation. Start the server in development mode and consult the API documentation route configured by the OpenAPI module.
 
-### Messaging
-| Tool | Description |
-|------|-------------|
-| `whatsapp_send_message` | Send text message |
-| `whatsapp_send_image` | Send image |
-| `whatsapp_send_video` | Send video |
-| `whatsapp_send_document` | Send document |
-| `whatsapp_send_audio` | Send audio |
-| `whatsapp_send_location` | Send location |
-| `whatsapp_send_contact` | Send contact |
-| `whatsapp_reply_message` | Reply to message |
-| `whatsapp_react_message` | React to message |
-| `whatsapp_delete_message` | Delete message |
-| `whatsapp_mark_read` | Mark as read |
-| `whatsapp_search_messages` | Search messages |
+The API includes route groups for the application's account, messaging, contact, chat, group, and automation capabilities. Refer to the implementation in `src/api/routes/` for the current endpoint list and request/response schemas.
 
-### Contacts
-| Tool | Description |
-|------|-------------|
-| `whatsapp_get_contacts` | List contacts |
-| `whatsapp_get_contact` | Get contact details |
-| `whatsapp_check_number` | Verify WhatsApp number |
-| `whatsapp_get_profile_picture` | Get profile photo |
-| `whatsapp_search_contacts` | Search contacts |
+## Docker
 
-### Chats
-| Tool | Description |
-|------|-------------|
-| `whatsapp_get_chats` | List chats |
-| `whatsapp_get_chat` | Get chat details |
-| `whatsapp_get_messages` | Get message history |
-| `whatsapp_mark_as_read` | Mark as read |
-| `whatsapp_archive_chat` | Archive chat |
-| `whatsapp_get_unread_count` | Get unread count |
-
-### Groups
-| Tool | Description |
-|------|-------------|
-| `whatsapp_get_groups` | List groups |
-| `whatsapp_get_group_info` | Get group details |
-| `whatsapp_get_group_members` | List participants |
-| `whatsapp_create_group` | Create group |
-| `whatsapp_add_group_participant` | Add members |
-| `whatsapp_remove_group_participant` | Remove members |
-| `whatsapp_promote_group_participant` | Promote to admin |
-| `whatsapp_demote_group_participant` | Demote from admin |
-| `whatsapp_update_group_subject` | Change name |
-| `whatsapp_update_group_description` | Change description |
-| `whatsapp_get_group_invite` | Get invite link |
-| `whatsapp_revoke_group_invite` | Revoke invite |
-| `whatsapp_leave_group` | Leave group |
-
-### Automation
-| Tool | Description |
-|------|-------------|
-| `whatsapp_create_auto_reply` | Create auto-reply rule |
-| `whatsapp_list_auto_reply` | List rules |
-| `whatsapp_get_auto_reply` | Get rule details |
-| `whatsapp_update_auto_reply` | Update rule |
-| `whatsapp_delete_auto_reply` | Delete rule |
-| `whatsapp_toggle_auto_reply` | Enable/disable rule |
-
-### System
-| Tool | Description |
-|------|-------------|
-| `whatsapp_health_check` | System health |
-| `whatsapp_get_metrics` | Metrics |
-| `whatsapp_get_version` | Version info |
-| `whatsapp_get_capabilities` | Capabilities |
-
-## REST API Endpoints
-
-### Health
-- `GET /health` - Basic health
-- `GET /health/ready` - Readiness check
-- `GET /health/live` - Liveness check
-
-### Accounts
-- `POST /api/v1/accounts` - Create account
-- `GET /api/v1/accounts` - List accounts
-- `GET /api/v1/accounts/:id` - Get account
-- `POST /api/v1/accounts/:id/connect` - Connect
-- `POST /api/v1/accounts/:id/disconnect` - Disconnect
-- `POST /api/v1/accounts/:id/logout` - Logout
-- `GET /api/v1/accounts/:id/status` - Get status
-- `GET /api/v1/accounts/:id/qr` - Get QR code
-- `POST /api/v1/accounts/:id/pairing-code` - Get pairing code
-- `DELETE /api/v1/accounts/:id` - Delete account
-
-### Messages
-- `POST /api/v1/messages/send` - Send text
-- `POST /api/v1/messages/image` - Send image
-- `POST /api/v1/messages/video` - Send video
-- `POST /api/v1/messages/document` - Send document
-- `POST /api/v1/messages/audio` - Send audio
-- `POST /api/v1/messages/location` - Send location
-- `POST /api/v1/messages/contact` - Send contact
-- `GET /api/v1/messages/search` - Search messages
-- `GET /api/v1/messages/:id` - Get message
-
-### Other Endpoints
-- Contacts: `GET /api/v1/contacts`, `GET /api/v1/contacts/:jid`, `POST /api/v1/contacts/check`
-- Chats: `GET /api/v1/chats`, `GET /api/v1/chats/:chat_jid`, `GET /api/v1/chats/:chat_jid/messages`
-- Groups: `GET /api/v1/groups`, `GET /api/v1/groups/:group_jid`, `GET /api/v1/groups/:group_jid/members`
-- Automations: `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/:id`
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment | `development` |
-| `HOST` | Server host | `127.0.0.1` |
-| `PORT` | Server port | `3000` |
-| `MCP_TRANSPORT` | Transport type | `stdio` |
-| `MCP_HTTP_ENABLED` | Enable HTTP transport | `false` |
-| `MCP_HTTP_PORT` | HTTP port | `3001` |
-| `DATABASE_URL` | SQLite path | `./storage/wa-mcp.db` |
-| `SESSION_DIRECTORY` | Session storage | `./storage/sessions` |
-| `MEDIA_DIRECTORY` | Media storage | `./storage/media` |
-| `LOG_DIRECTORY` | Log storage | `./storage/logs` |
-| `ENCRYPTION_KEY` | 32-byte hex key | *required* |
-| `API_KEY` | API key for HTTP | *required* |
-| `LOG_LEVEL` | Log level | `info` |
-| `MAX_MEDIA_SIZE_MB` | Max media size | `50` |
-
-## Docker Deployment
+Build the image:
 
 ```bash
-# Build
 docker build -t wa-mcp-pro .
-
-# Run with compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
 ```
+
+Start the Compose deployment:
+
+```bash
+docker compose up -d
+```
+
+View logs and stop the deployment:
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+Review the Dockerfile and Compose configuration before deployment. Ensure that required environment variables and persistent storage volumes are configured for your environment.
 
 ## Development
 
+Install dependencies:
+
 ```bash
-# Install dependencies
 pnpm install
-
-# Run in development
-pnpm dev
-
-# Type checking
-pnpm typecheck
-
-# Linting
-pnpm lint
-
-# Formatting
-pnpm format
-
-# Tests
-pnpm test
-pnpm test:coverage
-
-# Build
-pnpm build
-
-# Database
-pnpm db:migrate
-pnpm db:seed
-
-# Skills
-pnpm skills:validate
-pnpm skills:list
 ```
 
-## Skills System
+Available project scripts:
 
-WA-MCP Pro includes a comprehensive Skills system for AI Agents:
+| Command | Purpose |
+|---|---|
+| `pnpm dev` | Run the TypeScript application in watch mode. |
+| `pnpm build` | Compile TypeScript into `dist/`. |
+| `pnpm start` | Start the compiled application. |
+| `pnpm start:stdio` | Start with the STDIO transport argument. |
+| `pnpm start:http` | Start with the HTTP transport argument. |
+| `pnpm start:hybrid` | Start with the hybrid transport argument. |
+| `pnpm typecheck` | Run TypeScript type checking without emitting files. |
+| `pnpm lint` | Run ESLint on TypeScript source files. |
+| `pnpm lint:fix` | Apply ESLint fixes where possible. |
+| `pnpm format` | Format TypeScript source files. |
+| `pnpm format:check` | Check TypeScript formatting. |
+| `pnpm test` | Run the Vitest test suite. |
+| `pnpm test:watch` | Run Vitest in watch mode. |
+| `pnpm test:coverage` | Run tests with coverage. |
+| `pnpm db:migrate` | Run database migrations. |
+| `pnpm db:seed` | Seed the database. |
+| `pnpm db:studio` | Run the database studio script. |
+| `pnpm doctor` | Run the project diagnostics script. |
+| `pnpm generate:api-key` | Run the API key generation script. |
+| `pnpm skills:validate` | Validate the Skills collection. |
+| `pnpm skills:list` | List available Skills. |
+| `pnpm skills:check` | Check the Skills collection. |
 
-### Development Skills
-- `wa-mcp-development` - Architecture and development workflows
-- `baileys-integration` - Baileys connection and events
-- `mcp-server-engineering` - MCP tools, resources, prompts
-- `sqlite-drizzle-engineering` - Database schema and queries
-- `wa-mcp-testing` - Testing strategies
-- `wa-mcp-security-audit` - Security auditing
+Before submitting changes, run the relevant checks:
 
-### Operations Skills
-- `whatsapp-operator` - Connection management
-- `whatsapp-messaging` - Sending messages
-- `whatsapp-chat-management` - Chats, contacts, groups
-- `whatsapp-automation` - Auto-reply rules
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+```
+
+## Skills
+
+The repository includes agent-oriented Skills for development and operations. The current collection covers areas such as:
+
+- WA-MCP development workflows.
+- Baileys integration and WhatsApp connection events.
+- MCP server engineering.
+- SQLite/Drizzle database engineering.
+- Testing and security review.
+- WhatsApp account operations, messaging, chat management, and automation.
+
+Use the Skills scripts above to inspect and validate the files in the repository.
+
+## Security
+
+Treat this service as a system with access to private WhatsApp accounts and messages.
+
+- Never commit `.env`, API keys, encryption keys, session files, or database files containing private data.
+- Generate strong, unique secrets for `ENCRYPTION_KEY` and `API_KEY`.
+- Restrict access to the host, API, database, session directory, and log files.
+- Use HTTPS for remote deployments.
+- Keep dependencies updated and review security advisories.
+- Apply rate limits and least-privilege access where supported.
+- Do not log message contents, credentials, QR codes, or other sensitive data unnecessarily.
+- Back up persistent data securely and test restoration procedures.
+- Obtain consent before sending automated messages; respect opt-outs and applicable laws and platform policies.
+
+## WhatsApp disclaimer
+
+WA-MCP Pro uses Baileys, an unofficial WhatsApp Web implementation. It is **not affiliated with, endorsed by, or an official product of WhatsApp or Meta**.
+
+Use this project responsibly. Automated or excessive messaging may violate platform policies and can result in account restrictions. You are responsible for complying with WhatsApp's terms, applicable laws, privacy requirements, and the consent of message recipients.
 
 ## Documentation
+
+Project documentation is maintained in the `docs/` directory:
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Installation](docs/INSTALLATION.md)
@@ -374,45 +396,22 @@ WA-MCP Pro includes a comprehensive Skills system for AI Agents:
 - [Development](docs/DEVELOPMENT.md)
 - [Skills](docs/SKILLS.md)
 
-## Security Considerations
+## Contributing
 
-- Never commit `.env` files
-- Use strong `ENCRYPTION_KEY` (32 random bytes)
-- Rotate API keys periodically
-- Enable HTTPS in production (reverse proxy)
-- Monitor audit logs
-- Keep dependencies updated
+Contributions, bug reports, and documentation improvements are welcome.
 
-## WhatsApp Disclaimer
+1. Fork the repository.
+2. Create a focused feature branch.
+3. Make your changes and add or update tests.
+4. Run the relevant checks listed in [Development](#development).
+5. Open a pull request with a clear description of the change.
 
-This software uses Baileys, an unofficial WhatsApp Web API implementation. Use responsibly:
-
-- Respect WhatsApp Terms of Service
-- Don't spam or send unsolicited messages
-- Respect user privacy and opt-out requests
-- Be aware of potential account restrictions
-- This is not an official WhatsApp product
+For bugs and feature requests, use the repository's [GitHub Issues](https://github.com/Strong-Bee/wa-mcp-pro/issues).
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Support
-
-- [Issues](https://github.com/wa-mcp-pro/issues)
-- [Discussions](https://github.com/wa-mcp-pro/discussions)
-- [Documentation](https://wa-mcp-pro.dev)
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-<<<<<<< HEAD
-**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#   w a - m c p - p r o 
- 
- 
-=======
-**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#
->>>>>>> 099d0ae6c4eb8791a3a1f2240c1f0a0c7bdccad8
+**WA-MCP Pro** — Connect WhatsApp to your AI agents.
