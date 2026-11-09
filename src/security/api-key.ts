@@ -86,6 +86,6 @@ export function getPermissionsForRole(role: string): RolePermission[] {
   return ROLE_PERMISSIONS[role] ?? [];
 }
 
-export function hasPermission(permissions: RolePermission[], required: Permission): boolean {
+export function hasPermission(permissions: RolePermission[], required: string): boolean {
   return permissions.includes('*') || permissions.includes(required);
 }
