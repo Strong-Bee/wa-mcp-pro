@@ -19,17 +19,17 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:studio": "tsx scripts/studio.ts",
-    "db:seed": "tsx scripts/seed.ts",
-    "doctor": "tsx scripts/doctor.ts",
-    "generate:api-key": "tsx scripts/generate-api-key.ts",
-    "skills:validate": "tsx scripts/validate-skills.ts validate",
-    "skills:list": "tsx scripts/validate-skills.ts list",
-    "skills:check": "tsx scripts/validate-skills.ts check",
+    "db:migrate": "tsx src/scripts/migrate.ts run",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "doctor": "tsx src/cli.ts doctor",
+    "generate:api-key": "tsx src/cli.ts generate-api-key",
+    "skills:validate": "tsx src/scripts/validate-skills.ts validate",
+    "skills:list": "tsx src/scripts/validate-skills.ts list",
+    "skills:check": "tsx src/scripts/validate-skills.ts check",
     "docker:build": "docker build -t wa-mcp-pro .",
-    "docker:run": "docker-compose up -d",
-    "docker:stop": "docker-compose down"
+    "docker:run": "docker compose up -d",
+    "docker:stop": "docker compose down"
   },
   "bin": {
     "wa-mcp": "dist/cli.js"
