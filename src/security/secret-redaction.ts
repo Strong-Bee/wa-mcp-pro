@@ -1,12 +1,8 @@
-import { getLogger } from '../core/logger.js';
-
-const logger = getLogger().child({ component: 'SecretRedaction' });
-
 const SECRET_PATTERNS = [
-  { pattern: /[a-zA-Z0-9+/]{32,}/g, label: 'BASE64_SECRET' },
+  { pattern: /wamp_[a-zA-Z0-9_-]{6,}/g, label: 'WA_MCP_KEY' },
   { pattern: /[a-fA-F0-9]{64}/g, label: 'HEX_SECRET' },
-  { pattern: /sk-[a-zA-Z0-9]{48}/g, label: 'OPENAI_KEY' },
-  { pattern: /wamp_[a-zA-Z0-9]{64}/g, label: 'WA_MCP_KEY' },
+  { pattern: /[A-Za-z0-9+/]{16,}={0,2}/g, label: 'BASE64_SECRET' },
+  { pattern: /sk-[a-zA-Z0-9]{20,}/g, label: 'OPENAI_KEY' },
   { pattern: /Bearer\s+[a-zA-Z0-9\-._~+/]+=*/g, label: 'BEARER_TOKEN' },
   { pattern: /password["\s:=]+["']?[^"'\s]+/gi, label: 'PASSWORD' },
   { pattern: /secret["\s:=]+["']?[^"'\s]+/gi, label: 'SECRET' },
@@ -15,25 +11,34 @@ const SECRET_PATTERNS = [
 ];
 
 export function redactSecrets(input: string): string {
-  let result = input;
-
-  for (const { pattern, label } of SECRET_PATTERNS) {
-    result = result.replace(pattern, `[REDACTED_${label}]`);
-  }
-
-  return result;
+  return SECRET_PATTERNS.reduce(
+    (result, { pattern, label }) => result.replace(pattern, '[REDACTED_' + label + ']'),
+    input
+  );
 }
 
-export function redactObject<T extends Record<string, unknown>>(obj: T): T {
-  const redacted = { ...obj } as T;
+const SENSITIVE_KEY_PATTERN = /password|secret|token|api[_-]?key|authorization/i;
 
-  for (const key of Object.keys(redacted)) {
-    const value = redacted[key];
+export function redactObject(obj: Record<string, unknown>): Record<string, unknown> {
+  const redacted: Record<string, unknown> = {};
 
-    if (typeof value === 'string') {
-      redacted[key] = redactSecrets(value) as T[keyof T];
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      redacted[key] = '[REDACTED_SECRET]';
+    } else if (typeof value === 'string') {
+      redacted[key] = redactSecrets(value);
+    } else if (Array.isArray(value)) {
+      redacted[key] = value.map((item) =>
+        typeof item === 'object' && item !== null
+          ? redactObject(item as Record<string, unknown>)
+          : typeof item === 'string'
+            ? redactSecrets(item)
+            : item
+      );
     } else if (typeof value === 'object' && value !== null) {
-      redacted[key] = redactObject(value) as T[keyof T];
+      redacted[key] = redactObject(value as Record<string, unknown>);
+    } else {
+      redacted[key] = value;
     }
   }
 
@@ -41,17 +46,10 @@ export function redactObject<T extends Record<string, unknown>>(obj: T): T {
 }
 
 export function sanitizeForLog(data: unknown): unknown {
-  if (typeof data === 'string') {
-    return redactSecrets(data);
-  }
-
-  if (Array.isArray(data)) {
-    return data.map(sanitizeForLog);
-  }
-
+  if (typeof data === 'string') return redactSecrets(data);
+  if (Array.isArray(data)) return data.map(sanitizeForLog);
   if (typeof data === 'object' && data !== null) {
     return redactObject(data as Record<string, unknown>);
   }
-
   return data;
 }
