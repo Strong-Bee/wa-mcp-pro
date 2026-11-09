@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { matchTrigger, checkConditions } from '../../src/automation/rules.js';
+import { checkConditions } from '../../src/automation/rules.js';
+import { matchTrigger } from '../../src/automation/engine.js';
 import { checkRateLimit, checkOptOut, checkLoopPrevention } from '../../src/automation/guards.js';
 
 const dbMock = vi.hoisted(() => ({
