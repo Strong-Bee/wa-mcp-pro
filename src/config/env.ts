@@ -49,6 +49,14 @@ const envSchema = z.object({
   WHATSAPP_AUTO_RECONNECT: booleanFromEnv.default(true),
   WHATSAPP_RECONNECT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
   WHATSAPP_MESSAGE_HISTORY_LIMIT: z.coerce.number().int().positive().default(10000),
+}).superRefine((config, context) => {
+  if (config.NODE_ENV === 'production' && !config.ENCRYPTION_KEY) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ENCRYPTION_KEY'],
+      message: 'ENCRYPTION_KEY is required in production',
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
