@@ -18,10 +18,9 @@ async function main(): Promise<void> {
 
     await runMigrations();
     await seedDatabase();
-
     await start();
 
-    const accounts = await import('./whatsapp/connection-manager.js').then(m => m.listAccounts());
+    const accounts = await import('./whatsapp/connection-manager.js').then((module) => module.listAccounts());
     for (const account of accounts) {
       await loadAutomations(account.id);
     }
@@ -31,22 +30,19 @@ async function main(): Promise<void> {
       await startSTDIOTransport();
     }
 
+    const app = await createAPIServer();
+
     if (config.MCP_TRANSPORT === 'http' || config.MCP_TRANSPORT === 'hybrid') {
       const transport = await createStreamableHTTPTransport();
-      const app = await createAPIServer();
-      app.route({
-        method: 'ALL',
-        url: '/mcp/*',
-        handler: async (request, reply) => {
-          await transport.handleRequest(request.raw, reply.raw);
-        },
-      });
-      await startAPIServer(app);
-    } else {
-      const app = await createAPIServer();
-      await startAPIServer(app);
+      const handleMcpRequest = async (request: Parameters<typeof transport.handleRequest>[0], reply: Parameters<typeof transport.handleRequest>[1]) => {
+        await transport.handleRequest(request, reply);
+      };
+
+      app.route({ method: 'ALL', url: '/mcp', handler: handleMcpRequest });
+      app.route({ method: 'ALL', url: '/mcp/*', handler: handleMcpRequest });
     }
 
+    await startAPIServer(app);
     logger.info('WA-MCP Pro started successfully');
   } catch (error) {
     logger.fatal({ error }, 'Failed to start WA-MCP Pro');
