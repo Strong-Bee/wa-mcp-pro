@@ -8,7 +8,7 @@ const logger = getLogger().child({ component: 'StreamableHTTPTransport' });
 export async function createStreamableHTTPTransport(): Promise<StreamableHTTPServerTransport> {
   const config = getConfig();
 
-  const server = createMCPServer();
+  const server = await createMCPServer();
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
     enableJsonResponse: true,
