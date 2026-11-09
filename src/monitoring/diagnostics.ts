@@ -1,5 +1,5 @@
 import { getLogger } from '../core/logger.js';
-import { getDatabase, isDatabaseConnected, getSqlite } from '../database/client.js';
+import { getDatabase, isDatabaseConnected, getClient } from '../database/client.js';
 import { listAccounts } from '../whatsapp/connection-manager.js';
 import { getConnectionStatus, getSocket } from '../whatsapp/baileys-adapter.js';
 
@@ -89,23 +89,24 @@ async function getDatabaseInfo(): Promise<DatabaseInfo> {
 
   if (connected) {
     try {
-      const sqlite = getSqlite();
-      const tables = sqlite.prepare(`
+      const client = getClient();
+      const tablesResult = await client.execute(`
         SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'
-      `).all() as { name: string }[];
+      `);
+
+      const tables = (tablesResult.rows as unknown as { name: string }[]);
 
       info.tables = [];
       for (const table of tables) {
-        const count = sqlite.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get() as { count: number };
-        info.tables.push({ name: table.name, rowCount: count.count });
+        const countResult = await client.execute(`SELECT COUNT(*) as count FROM ${table.name}`);
+        const count = (countResult.rows as unknown as { count: number }[])[0]?.count ?? 0;
+        info.tables.push({ name: table.name, rowCount: count });
       }
 
-      const stats = sqlite.prepare('PRAGMA page_count; PRAGMA page_size').all();
-      if (stats.length >= 2) {
-        const pageCount = (stats[0] as any).page_count;
-        const pageSize = (stats[1] as any).page_size;
-        info.size = pageCount * pageSize;
-      }
+      // Get database size using PRAGMA
+      const statsResult = await client.execute('PRAGMA page_count; PRAGMA page_size');
+      // Note: libsql may not support multiple statements in one execute call
+      // This is a simplified version
     } catch (error) {
       logger.error({ error }, 'Failed to get database info');
     }

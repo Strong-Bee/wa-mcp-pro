@@ -10,12 +10,14 @@ export async function createAutomation(data: Omit<NewAutomation, 'id' | 'created
   const automation: NewAutomation = {
     id,
     ...data,
+    enabled: data.enabled ?? true,
+    cooldown: data.cooldown ?? 0,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(automations).values(automation);
-  return automation;
+  return automation as Automation;
 }
 
 export async function getAutomationById(id: string): Promise<Automation | null> {
@@ -75,7 +77,9 @@ export async function toggleAutomation(id: string): Promise<Automation | null> {
 export async function deleteAutomation(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(automations).where(eq(automations.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }
 
 export async function getEnabledAutomations(accountId: string): Promise<Automation[]> {

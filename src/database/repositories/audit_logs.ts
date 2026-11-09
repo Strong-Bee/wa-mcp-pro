@@ -10,7 +10,7 @@ export async function createAuditLog(data: Omit<NewAuditLog, 'id' | 'createdAt'>
   const auditLog: NewAuditLog = {
     id,
     ...data,
-    createdAt: now.getTime(), // Use timestamp number for drizzle with mode: 'timestamp'
+    createdAt: now,
   };
 
   await db.insert(auditLogs).values(auditLog);
@@ -29,7 +29,7 @@ export async function listAuditLogs(
 ): Promise<AuditLog[]> {
   const db = getDatabase();
 
-  const conditions = [];
+  const conditions: ReturnType<typeof eq>[] = [];
 
   if (accountId) {
     conditions.push(eq(auditLogs.accountId, accountId));
@@ -48,11 +48,11 @@ export async function listAuditLogs(
   }
 
   if (from) {
-    conditions.push(gte(auditLogs.createdAt, from.getTime()));
+    conditions.push(gte(auditLogs.createdAt, from));
   }
 
   if (to) {
-    conditions.push(lte(auditLogs.createdAt, to.getTime()));
+    conditions.push(lte(auditLogs.createdAt, to));
   }
 
   return db
@@ -78,7 +78,7 @@ export async function countAuditLogs(accountId?: string): Promise<number> {
 
 export async function deleteOldAuditLogs(olderThan: Date): Promise<number> {
   const db = getDatabase();
-  const result = await db.delete(auditLogs).where(lte(auditLogs.createdAt, olderThan.getTime()));
+  const result = await db.delete(auditLogs).where(lte(auditLogs.createdAt, olderThan));
   // libsql ResultSet uses rowsAffected
   const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
   return changes;

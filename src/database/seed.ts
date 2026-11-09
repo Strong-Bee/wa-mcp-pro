@@ -2,6 +2,7 @@ import { getDatabase } from './client.js';
 import { accounts, sessions, apiKeys } from './schema/index.js';
 import { hashApiKey } from '../security/api-key.js';
 import { getLogger } from '../core/logger.js';
+import { randomBytes } from 'crypto';
 
 export async function seedDatabase(): Promise<void> {
   const db = getDatabase();
@@ -15,23 +16,27 @@ export async function seedDatabase(): Promise<void> {
     return;
   }
 
-  const masterKey = process.env.ENCRYPTION_KEY || 'development-master-key-change-in-production';
+  const masterKey = process.env['ENCRYPTION_KEY'] || 'development-master-key-change-in-production';
   if (masterKey.length < 32) {
     logger.warn('ENCRYPTION_KEY is too short, using default for development');
   }
 
   const apiKeyName = 'Default API Key';
-  const plainApiKey = `wamp_${crypto.randomBytes(32).toString('hex')}`;
+  const plainApiKey = `wamp_${randomBytes(32).toString('hex')}`;
   const keyHash = await hashApiKey(plainApiKey);
 
-  await db.insert(apiKeys).values({
-    id: crypto.randomUUID(),
-    name: apiKeyName,
-    keyHash,
-    permissions: JSON.stringify(['*']),
-    createdAt: new Date(),
-  });
+  try {
+    await db.insert(apiKeys).values({
+      id: crypto.randomUUID(),
+      name: apiKeyName,
+      keyHash,
+      permissions: ['*'], // Drizzle JSON mode handles serialization
+    });
 
-  logger.info({ apiKey: plainApiKey }, 'Database seeded with default API key');
-  logger.warn('Save this API key - it will not be shown again!');
+    logger.info({ apiKey: plainApiKey }, 'Database seeded with default API key');
+    logger.warn('Save this API key - it will not be shown again!');
+  } catch (error) {
+    logger.error({ error, apiKeyName, keyHash }, 'Failed to seed API key');
+    throw error;
+  }
 }

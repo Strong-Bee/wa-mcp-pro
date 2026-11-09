@@ -1,10 +1,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import { getConfig } from '../../config/env.js';
 import { getDatabase } from '../../database/client.js';
 import { messages } from '../../database/schema/messages.js';
-import { count } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
 
 const logger = getLogger().child({ component: 'SystemTools' });
@@ -18,7 +19,7 @@ const metricsSchema = z.object({
 });
 
 export function registerSystemTools(server: Server): void {
-  server.setRequestHandler('tools/list', async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
         name: 'whatsapp_health_check',
@@ -59,7 +60,7 @@ export function registerSystemTools(server: Server): void {
     ],
   }));
 
-  server.setRequestHandler('tools/call', async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {

@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { getLogger } from '../core/logger.js';
 
 const logger = getLogger().child({ component: 'PromptRegistry' });
@@ -6,7 +7,7 @@ const logger = getLogger().child({ component: 'PromptRegistry' });
 export function registerPrompts(server: Server): void {
   logger.info('Registering MCP prompts');
 
-  server.setRequestHandler('prompts/list', async () => {
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
     return {
       prompts: [
         {
@@ -108,7 +109,7 @@ export function registerPrompts(server: Server): void {
     };
   });
 
-  server.setRequestHandler('prompts/get', async (request) => {
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     switch (name) {

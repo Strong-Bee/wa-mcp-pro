@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -74,7 +75,7 @@ const searchSchema = z.object({
 });
 
 export function registerMessagingTools(server: Server): void {
-  server.setRequestHandler('tools/list', async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
         name: 'whatsapp_send_message',
@@ -236,14 +237,14 @@ export function registerMessagingTools(server: Server): void {
     ],
   }));
 
-  server.setRequestHandler('tools/call', async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {
       switch (name) {
         case 'whatsapp_send_message': {
           const { account_id, to, message, reply_to } = sendTextSchema.parse(args);
-          const result = await sendTextMessage({ to, message, replyTo: reply_to });
+          const result = await sendTextMessage({ to, text: message, replyTo: reply_to });
           return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
         }
 

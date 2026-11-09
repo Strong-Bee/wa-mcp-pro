@@ -1,6 +1,6 @@
 import { getDatabase } from '../client.js';
 import { chats, Chat, NewChat } from '../schema/chats.js';
-import { eq, desc, and, like, count } from 'drizzle-orm';
+import { eq, desc, and, like, count, sql } from 'drizzle-orm';
 
 export async function createChat(data: Omit<NewChat, 'id' | 'createdAt' | 'updatedAt'>): Promise<Chat> {
   const db = getDatabase();
@@ -9,13 +9,18 @@ export async function createChat(data: Omit<NewChat, 'id' | 'createdAt' | 'updat
 
   const chat: NewChat = {
     id,
-    ...data,
+    accountId: data.accountId,
+    chatJid: data.chatJid,
+    name: data.name ?? null,
+    isGroup: data.isGroup ?? false,
+    unreadCount: data.unreadCount ?? 0,
+    lastMessageAt: data.lastMessageAt ?? null,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(chats).values(chat);
-  return chat;
+  return chat as Chat;
 }
 
 export async function upsertChat(data: Omit<NewChat, 'id' | 'createdAt' | 'updatedAt'>): Promise<Chat> {
@@ -35,7 +40,7 @@ export async function upsertChat(data: Omit<NewChat, 'id' | 'createdAt' | 'updat
       .set({ ...data, updatedAt: now })
       .where(eq(chats.id, existing[0].id))
       .returning();
-    return result[0];
+    return result[0] as Chat;
   }
 
   return createChat(data);
@@ -106,7 +111,7 @@ export async function incrementUnreadCount(accountId: string, chatJid: string): 
   const db = getDatabase();
   await db
     .update(chats)
-    .set({ unreadCount: chats.unreadCount + 1, updatedAt: new Date() })
+    .set({ unreadCount: sql`${chats.unreadCount} + 1`, updatedAt: new Date() })
     .where(and(eq(chats.accountId, accountId), eq(chats.chatJid, chatJid)));
 }
 
@@ -121,5 +126,7 @@ export async function resetUnreadCount(accountId: string, chatJid: string): Prom
 export async function deleteChat(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(chats).where(eq(chats.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }

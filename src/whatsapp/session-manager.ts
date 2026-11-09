@@ -29,7 +29,7 @@ export class SessionManager {
     }
   }
 
-  private getSessionPath(accountId: string): string {
+  getSessionPath(accountId: string): string {
     return path.join(this.sessionDir, `${accountId}.json`);
   }
 

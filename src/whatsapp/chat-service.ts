@@ -3,7 +3,7 @@ import { getLogger } from '../core/logger.js';
 import { normalizeJid, isGroupJid } from './jid-utils.js';
 import { getDatabase } from '../database/client.js';
 import { chats, messages } from '../database/schema/index.js';
-import { eq, and, desc, count, like } from 'drizzle-orm';
+import { eq, and, desc, count, like, lt, gt } from 'drizzle-orm';
 import { AppError, ERROR_CODES } from '../core/errors.js';
 
 const logger = getLogger().child({ component: 'ChatService' });
@@ -47,24 +47,8 @@ export async function getChat(accountId: string, chatJid: string): Promise<any |
 
   if (result[0]) return result[0];
 
-  const socket = getSocket(accountId);
-  if (!socket) return null;
-
-  try {
-    const chat = await socket.chats.get(normalizedJid);
-    if (chat) {
-      return {
-        jid: chat.id,
-        name: chat.name,
-        isGroup: isGroupJid(chat.id),
-        unreadCount: chat.unreadCount || 0,
-        lastMessageTimestamp: chat.lastMessage?.messageTimestamp ? new Date(chat.lastMessage.messageTimestamp * 1000) : undefined,
-      };
-    }
-  } catch (error) {
-    logger.debug({ chatJid, error }, 'Failed to fetch chat from WhatsApp');
-  }
-
+  // Chat not in database - we can't fetch from WhatsApp directly in Baileys 6.17.16
+  // The chats are populated via events (chats.update)
   return null;
 }
 
@@ -83,7 +67,7 @@ export async function getChatMessages(
   ];
 
   if (before) {
-    conditions.push(messages.timestamp.lt(before));
+    conditions.push(lt(messages.timestamp, before));
   }
 
   return db
@@ -100,15 +84,23 @@ export async function markChatAsRead(accountId: string, chatJid: string): Promis
 
   const normalizedJid = normalizeJid(chatJid);
 
-  const chat = await socket.chats.get(normalizedJid);
-  if (chat?.messages) {
-    const unreadMessages = chat.messages.filter((m: any) => !m.key.fromMe && m.status !== 'read');
-    if (unreadMessages.length > 0) {
-      await socket.readMessages(unreadMessages.map((m: any) => ({ id: m.key.id, remoteJid: normalizedJid })));
-    }
+  // Get unread message IDs from database
+  const db = getDatabase();
+  const unreadMessages = await db
+    .select({ messageId: messages.messageId })
+    .from(messages)
+    .where(and(
+      eq(messages.accountId, accountId),
+      eq(messages.chatJid, normalizedJid),
+      eq(messages.direction, 'inbound'),
+      eq(messages.status, 'delivered')
+    ))
+    .limit(100);
+
+  if (unreadMessages.length > 0) {
+    await socket.readMessages(unreadMessages.map(m => ({ id: m.messageId, remoteJid: normalizedJid })));
   }
 
-  const db = getDatabase();
   await db
     .update(chats)
     .set({ unreadCount: 0, updatedAt: new Date() })
@@ -120,7 +112,8 @@ export async function archiveChat(accountId: string, chatJid: string, archive: b
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
   const normalizedJid = normalizeJid(chatJid);
-  await socket.chatModify({ archive }, normalizedJid);
+  // chatModify expects a different structure in Baileys 6.17.16
+  await socket.chatModify({ archive, lastMessages: [] }, normalizedJid);
 }
 
 export async function getUnreadCount(accountId: string): Promise<number> {
@@ -128,14 +121,9 @@ export async function getUnreadCount(accountId: string): Promise<number> {
   const result = await db
     .select({ total: count() })
     .from(chats)
-    .where(and(eq(chats.accountId, accountId), chats.unreadCount.gt(0)));
+    .where(and(eq(chats.accountId, accountId), gt(chats.unreadCount, 0)));
 
-  const totalResult = await db
-    .select({ total: count() })
-    .from(chats)
-    .where(eq(chats.accountId, accountId));
-
-  return totalResult[0]?.total ?? 0;
+  return result[0]?.total ?? 0;
 }
 
 export async function countChats(accountId: string): Promise<number> {

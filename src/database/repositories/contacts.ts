@@ -9,13 +9,17 @@ export async function createContact(data: Omit<NewContact, 'id' | 'createdAt' | 
 
   const contact: NewContact = {
     id,
-    ...data,
+    accountId: data.accountId,
+    jid: data.jid,
+    name: data.name ?? null,
+    phoneNumber: data.phoneNumber ?? null,
+    profilePictureUrl: data.profilePictureUrl ?? null,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(contacts).values(contact);
-  return contact;
+  return contact as Contact;
 }
 
 export async function upsertContact(data: Omit<NewContact, 'id' | 'createdAt' | 'updatedAt'>): Promise<Contact> {
@@ -35,7 +39,7 @@ export async function upsertContact(data: Omit<NewContact, 'id' | 'createdAt' | 
       .set({ ...data, updatedAt: now })
       .where(eq(contacts.id, existing[0].id))
       .returning();
-    return result[0];
+    return result[0] as Contact;
   }
 
   return createContact(data);
@@ -100,5 +104,7 @@ export async function updateContact(id: string, data: Partial<Omit<Contact, 'id'
 export async function deleteContact(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(contacts).where(eq(contacts.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }

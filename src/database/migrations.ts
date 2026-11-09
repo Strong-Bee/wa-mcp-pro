@@ -176,19 +176,12 @@ export async function runMigrations(): Promise<void> {
 
   logger.info('Running database migrations');
 
-  await client.execute('BEGIN TRANSACTION;');
-
-  try {
-    for (const migration of migrations) {
-      await client.execute(migration);
-    }
-    await client.execute('COMMIT;');
-    logger.info('Database migrations completed successfully');
-  } catch (error) {
-    await client.execute('ROLLBACK;');
-    logger.error({ error }, 'Migration failed');
-    throw error;
+  // Execute each migration individually (idempotent CREATE IF NOT EXISTS statements)
+  // Using explicit transaction doesn't work with libsql client properly
+  for (const migration of migrations) {
+    await client.execute(migration);
   }
+  logger.info('Database migrations completed successfully');
 }
 
 export async function checkMigrations(): Promise<{ applied: number; pending: number }> {

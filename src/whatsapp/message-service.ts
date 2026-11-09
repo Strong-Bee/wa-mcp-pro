@@ -3,9 +3,10 @@ import { getLogger } from '../core/logger.js';
 import { normalizeJid, isGroupJid } from './jid-utils.js';
 import { getDatabase } from '../database/client.js';
 import { messages, contacts, chats } from '../database/schema/index.js';
-import { eq, and, desc } from 'drizzle-orm';
-import { generateWAMessageFromContent, prepareWAMessageMedia, proto } from '@whiskeysockets/baileys';
+import { eq, and, desc, lt, sql } from 'drizzle-orm';
 import { AppError, ERROR_CODES } from '../core/errors.js';
+import { randomUUID } from 'crypto';
+import fs from 'fs';
 
 const logger = getLogger().child({ component: 'MessageService' });
 
@@ -27,29 +28,23 @@ export interface SendMediaOptions {
   replyTo?: string;
 }
 
+function extractMessageId(result: any, fallbackId: string): string {
+  if (typeof result === 'string') return result;
+  if (result?.key?.id) return result.key.id;
+  return fallbackId;
+}
+
 export async function sendTextMessage(options: SendMessageOptions): Promise<{ messageId: string; timestamp: Date }> {
   const socket = getSocket(options.to.split('@')[0]);
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
   const to = normalizeJid(options.to);
-  const content = generateWAMessageFromContent(
-    to,
-    proto.Message.fromObject({
-      conversation: options.text || '',
-    }),
-    { userJid: socket.user?.id }
-  );
+  const result = await socket.sendMessage(to, {
+    text: options.text || '',
+  }, { quoted: options.replyTo ? { key: { id: options.replyTo, remoteJid: to } } : undefined });
 
-  if (options.replyTo) {
-    const [msg] = await socket.relayMessage(to, content.message!, {
-      messageId: content.key.id!,
-      participant: options.replyTo,
-    });
-    return { messageId: msg?.key?.id || content.key.id!, timestamp: new Date() };
-  }
-
-  const result = await socket.relayMessage(to, content.message!, { messageId: content.key.id! });
-  return { messageId: result?.key?.id || content.key.id!, timestamp: new Date() };
+  const messageId = extractMessageId(result, randomUUID());
+  return { messageId, timestamp: new Date() };
 }
 
 export async function sendMediaMessage(options: SendMediaOptions): Promise<{ messageId: string; timestamp: Date }> {
@@ -59,58 +54,44 @@ export async function sendMediaMessage(options: SendMediaOptions): Promise<{ mes
   const to = normalizeJid(options.to);
   const { path: mediaPath, mimetype, filename, caption } = options.media;
 
-  const media = await prepareWAMessageMedia({ media: mediaPath }, 'regular', { logger });
+  // Read the file as buffer
+  const buffer = fs.readFileSync(mediaPath);
 
-  let messageContent: proto.IMessage;
+  let messageContent: any;
 
   if (mimetype.startsWith('image/')) {
-    messageContent = proto.Message.fromObject({
-      imageMessage: {
-        ...media,
-        caption: caption || '',
-        mimetype,
-        jpegThumbnail: media.jpegThumbnail,
-      },
-    });
+    messageContent = {
+      image: buffer,
+      caption: caption || '',
+      mimetype,
+    };
   } else if (mimetype.startsWith('video/')) {
-    messageContent = proto.Message.fromObject({
-      videoMessage: {
-        ...media,
-        caption: caption || '',
-        mimetype,
-      },
-    });
+    messageContent = {
+      video: buffer,
+      caption: caption || '',
+      mimetype,
+    };
   } else if (mimetype.startsWith('audio/')) {
-    messageContent = proto.Message.fromObject({
-      audioMessage: {
-        ...media,
-        mimetype,
-        ptt: mimetype === 'audio/ogg; codecs=opus',
-      },
-    });
+    messageContent = {
+      audio: buffer,
+      mimetype,
+      ptt: mimetype === 'audio/ogg; codecs=opus',
+    };
   } else {
-    messageContent = proto.Message.fromObject({
-      documentMessage: {
-        ...media,
-        mimetype,
-        fileName: filename || 'document',
-        caption: caption || '',
-      },
-    });
+    messageContent = {
+      document: buffer,
+      mimetype,
+      fileName: filename || 'document',
+      caption: caption || '',
+    };
   }
 
-  const content = generateWAMessageFromContent(to, messageContent, { userJid: socket.user?.id });
+  const result = await socket.sendMessage(to, messageContent, {
+    quoted: options.replyTo ? { key: { id: options.replyTo, remoteJid: to } } : undefined,
+  });
 
-  if (options.replyTo) {
-    const [msg] = await socket.relayMessage(to, content.message!, {
-      messageId: content.key.id!,
-      participant: options.replyTo,
-    });
-    return { messageId: msg?.key?.id || content.key.id!, timestamp: new Date() };
-  }
-
-  const result = await socket.relayMessage(to, content.message!, { messageId: content.key.id! });
-  return { messageId: result?.key?.id || content.key.id!, timestamp: new Date() };
+  const messageId = extractMessageId(result, randomUUID());
+  return { messageId, timestamp: new Date() };
 }
 
 export async function sendLocationMessage(to: string, location: {
@@ -123,21 +104,17 @@ export async function sendLocationMessage(to: string, location: {
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
   const normalizedTo = normalizeJid(to);
-  const content = generateWAMessageFromContent(
-    normalizedTo,
-    proto.Message.fromObject({
-      locationMessage: {
-        degreesLatitude: location.degreesLatitude,
-        degreesLongitude: location.degreesLongitude,
-        name: location.name,
-        address: location.address,
-      },
-    }),
-    { userJid: socket.user?.id }
-  );
+  const result = await socket.sendMessage(normalizedTo, {
+    location: {
+      degreesLatitude: location.degreesLatitude,
+      degreesLongitude: location.degreesLongitude,
+      name: location.name,
+      address: location.address,
+    },
+  });
 
-  const result = await socket.relayMessage(normalizedTo, content.message!, { messageId: content.key.id! });
-  return { messageId: result?.key?.id || content.key.id!, timestamp: new Date() };
+  const messageId = extractMessageId(result, randomUUID());
+  return { messageId, timestamp: new Date() };
 }
 
 export async function sendContactMessage(to: string, contact: {
@@ -148,19 +125,15 @@ export async function sendContactMessage(to: string, contact: {
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
   const normalizedTo = normalizeJid(to);
-  const content = generateWAMessageFromContent(
-    normalizedTo,
-    proto.Message.fromObject({
-      contactMessage: {
-        displayName: contact.displayName,
-        vcard: contact.vcard,
-      },
-    }),
-    { userJid: socket.user?.id }
-  );
+  const result = await socket.sendMessage(normalizedTo, {
+    contacts: {
+      displayName: contact.displayName,
+      contacts: [{ vcard: contact.vcard }],
+    },
+  });
 
-  const result = await socket.relayMessage(normalizedTo, content.message!, { messageId: content.key.id! });
-  return { messageId: result?.key?.id || content.key.id!, timestamp: new Date() };
+  const messageId = extractMessageId(result, randomUUID());
+  return { messageId, timestamp: new Date() };
 }
 
 export async function reactToMessage(to: string, messageId: string, reaction: string): Promise<void> {
@@ -204,7 +177,7 @@ export async function getMessages(
   ];
 
   if (before) {
-    conditions.push(messages.timestamp.lt(before));
+    conditions.push(lt(messages.timestamp, before));
   }
 
   return db
@@ -236,7 +209,7 @@ export async function searchMessages(accountId: string, query: string, limit: nu
     .from(messages)
     .where(and(
       eq(messages.accountId, accountId),
-      messages.messageContent.like(`%${query}%`)
+      sql`${messages.messageContent} LIKE ${'%' + query + '%'}`
     ))
     .orderBy(desc(messages.timestamp))
     .limit(limit);

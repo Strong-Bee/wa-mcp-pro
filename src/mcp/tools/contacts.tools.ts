@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -36,7 +37,7 @@ const getProfileSchema = z.object({
 });
 
 export function registerContactTools(server: Server): void {
-  server.setRequestHandler('tools/list', async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
         name: 'whatsapp_get_contacts',
@@ -115,7 +116,7 @@ export function registerContactTools(server: Server): void {
     ],
   }));
 
-  server.setRequestHandler('tools/call', async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {

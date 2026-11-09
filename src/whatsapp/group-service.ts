@@ -8,11 +8,6 @@ import { AppError, ERROR_CODES } from '../core/errors.js';
 
 const logger = getLogger().child({ component: 'GroupService' });
 
-export interface GroupParticipant {
-  jid: string;
-  role: 'admin' | 'superadmin' | 'member';
-}
-
 export async function getGroups(accountId: string, limit: number = 50, offset: number = 0): Promise<any[]> {
   const db = getDatabase();
 
@@ -52,7 +47,7 @@ export async function getGroup(accountId: string, groupJid: string): Promise<any
           jid: p.id,
           role: p.admin === 'superadmin' ? 'superadmin' : p.admin === 'admin' ? 'admin' : 'member',
         })),
-        createdAt: new Date(group.creation * 1000),
+        createdAt: group.creation ? new Date(group.creation * 1000) : new Date(),
       };
     }
   } catch (error) {
@@ -62,7 +57,7 @@ export async function getGroup(accountId: string, groupJid: string): Promise<any
   return null;
 }
 
-export async function getGroupParticipants(accountId: string, groupJid: string): Promise<GroupParticipant[]> {
+export async function getGroupParticipants(accountId: string, groupJid: string): Promise<{ jid: string; role: 'admin' | 'superadmin' | 'member' }[]> {
   const socket = getSocket(accountId);
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
@@ -87,7 +82,8 @@ export async function createGroup(accountId: string, subject: string, participan
   const normalizedParticipants = participants.map(normalizeJid);
 
   const result = await socket.groupCreate(subject, normalizedParticipants);
-  return result.gid;
+  // groupCreate returns GroupMetadata object with id property
+  return (result as any).id ?? (result as any).gid ?? '';
 }
 
 export async function addGroupParticipants(accountId: string, groupJid: string, participants: string[]): Promise<void> {
@@ -152,7 +148,7 @@ export async function getGroupInviteCode(accountId: string, groupJid: string): P
 
   const normalizedJid = normalizeGroupJid(groupJid);
   const code = await socket.groupInviteCode(normalizedJid);
-  return code;
+  return code ?? '';
 }
 
 export async function revokeGroupInviteCode(accountId: string, groupJid: string): Promise<string> {
@@ -161,7 +157,7 @@ export async function revokeGroupInviteCode(accountId: string, groupJid: string)
 
   const normalizedJid = normalizeGroupJid(groupJid);
   const code = await socket.groupRevokeInvite(normalizedJid);
-  return code;
+  return code ?? '';
 }
 
 export async function countGroups(accountId: string): Promise<number> {

@@ -6,6 +6,9 @@ import { getSocket } from './baileys-adapter.js';
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { AppError, ERROR_CODES } from '../core/errors.js';
 import { MEDIA_CONFIG } from '../config/constants.js';
+import { getDatabase } from '../database/client.js';
+import { messages } from '../database/schema/index.js';
+import { eq, and } from 'drizzle-orm';
 
 const logger = getLogger().child({ component: 'MediaService' });
 
@@ -32,15 +35,32 @@ export async function downloadMedia(
     fs.mkdirSync(mediaDir, { recursive: true });
   }
 
-  const message = await getMessageFromSocket(socket, chatJid, messageId);
-  if (!message) {
+  // Get message from database instead of socket.chats.get
+  const db = getDatabase();
+  const normalizedChatJid = chatJid; // Already normalized in calling code
+  const messageRecord = await db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.accountId, accountId), eq(messages.messageId, messageId)))
+    .limit(1);
+
+  if (!messageRecord[0]) {
     throw new AppError(ERROR_CODES.WA_MEDIA_INVALID, 'Message not found');
   }
 
-  const buffer = await downloadContentFromMessage(message, messageType as any);
-  if (!buffer) {
+  // Reconstruct a minimal message object for downloadContentFromMessage
+  const message = {
+    key: { id: messageId, remoteJid: normalizedChatJid },
+    message: JSON.parse(messageRecord[0].messageContent),
+  } as any;
+
+  const mediaStream = await downloadContentFromMessage(message, messageType as any);
+  if (!mediaStream) {
     throw new AppError(ERROR_CODES.WA_MEDIA_INVALID, 'Failed to download media');
   }
+
+  // Convert stream to buffer
+  const buffer = await streamToBuffer(mediaStream);
 
   if (buffer.length > config.MAX_MEDIA_SIZE_MB * 1024 * 1024) {
     throw new AppError(ERROR_CODES.WA_MEDIA_TOO_LARGE, `Media size exceeds ${config.MAX_MEDIA_SIZE_MB}MB limit`);
@@ -62,11 +82,13 @@ export async function downloadMedia(
   };
 }
 
-async function getMessageFromSocket(socket: any, chatJid: string, messageId: string): Promise<any> {
-  const chat = await socket.chats.get(chatJid);
-  if (!chat?.messages) return null;
-
-  return chat.messages.find((m: any) => m.key.id === messageId);
+function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
 }
 
 function getMimeTypeFromMessage(message: any, messageType: string): string {
@@ -93,8 +115,26 @@ function generateFilename(messageId: string, mimetype: string): string {
   return `${messageId}.${extension}`;
 }
 
+// Allowed MIME types as a wider type to avoid TypeScript issues
+const ALLOWED_MIME_TYPES: string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'video/mp4',
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/mp4',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
 export function validateMedia(mimetype: string, size: number): { valid: boolean; error?: string } {
-  if (!MEDIA_CONFIG.allowedMimeTypes.includes(mimetype)) {
+  if (!ALLOWED_MIME_TYPES.includes(mimetype)) {
     return { valid: false, error: `MIME type ${mimetype} not allowed` };
   }
 

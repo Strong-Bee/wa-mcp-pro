@@ -44,15 +44,24 @@ export async function getContact(accountId: string, jid: string): Promise<any | 
   if (!socket) return null;
 
   try {
-    const [contact] = await socket.onWhatsApp(normalizedJid);
-    if (contact?.exists) {
-      const profile = await socket.fetchProfilePicture(normalizedJid).catch(() => null);
-      return {
-        jid: contact.jid,
-        name: contact.name,
-        phoneNumber: contact.jid.split('@')[0],
-        profilePictureUrl: profile,
-      };
+    const waContacts = await socket.onWhatsApp(normalizedJid);
+    if (waContacts && waContacts.length > 0) {
+      const contact = waContacts[0] as any;
+      if (contact?.exists) {
+        let profilePictureUrl: string | null = null;
+        try {
+          const url = await socket.profilePictureUrl(normalizedJid).catch(() => null);
+          profilePictureUrl = url ?? null;
+        } catch {
+          // Ignore profile picture errors
+        }
+        return {
+          jid: contact.jid,
+          name: contact.name || contact.notify || '',
+          phoneNumber: contact.jid.split('@')[0],
+          profilePictureUrl,
+        };
+      }
     }
   } catch (error) {
     logger.debug({ jid, error }, 'Failed to fetch contact from WhatsApp');
@@ -66,12 +75,17 @@ export async function checkNumber(accountId: string, phoneNumber: string): Promi
   if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
 
   const normalized = normalizeJid(phoneNumber);
-  const [result] = await socket.onWhatsApp(normalized);
+  const waContacts = await socket.onWhatsApp(normalized);
 
-  return {
-    exists: result?.exists ?? false,
-    jid: result?.jid,
-  };
+  if (waContacts && waContacts.length > 0) {
+    const result = waContacts[0] as any;
+    return {
+      exists: result?.exists ?? false,
+      jid: result?.jid,
+    };
+  }
+
+  return { exists: false };
 }
 
 export async function getProfilePicture(accountId: string, jid: string): Promise<string | null> {
@@ -80,7 +94,8 @@ export async function getProfilePicture(accountId: string, jid: string): Promise
 
   const normalizedJid = normalizeJid(jid);
   try {
-    return await socket.fetchProfilePicture(normalizedJid);
+    const url = await socket.profilePictureUrl(normalizedJid).catch(() => null);
+    return url ?? null;
   } catch {
     return null;
   }

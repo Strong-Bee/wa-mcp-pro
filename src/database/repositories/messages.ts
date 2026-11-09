@@ -10,11 +10,12 @@ export async function createMessage(data: Omit<NewMessage, 'id' | 'createdAt'>):
   const message: NewMessage = {
     id,
     ...data,
+    status: data.status ?? 'pending',
     createdAt: now,
   };
 
   await db.insert(messages).values(message);
-  return message;
+  return message as Message;
 }
 
 export async function getMessageById(id: string): Promise<Message | null> {
@@ -50,11 +51,11 @@ export async function listMessages(
   }
 
   if (before) {
-    conditions.push(lte(messages.timestamp, before.getTime()));
+    conditions.push(lte(messages.timestamp, before));
   }
 
   if (after) {
-    conditions.push(gte(messages.timestamp, after.getTime()));
+    conditions.push(gte(messages.timestamp, after));
   }
 
   return db
@@ -92,13 +93,17 @@ export async function updateMessageStatus(id: string, status: Message['status'])
 export async function deleteMessage(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(messages).where(eq(messages.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }
 
 export async function deleteOldMessages(accountId: string, olderThan: Date): Promise<number> {
   const db = getDatabase();
   const result = await db
     .delete(messages)
-    .where(and(eq(messages.accountId, accountId), lte(messages.timestamp, olderThan.getTime())));
-  return result.changes ?? 0;
+    .where(and(eq(messages.accountId, accountId), lte(messages.timestamp, olderThan)));
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes;
 }

@@ -85,7 +85,8 @@ export async function createConnection(accountId: string): Promise<WASocket> {
       eventBus.emit(EVENT_TYPES[0], accountId);
       logger.info({ accountId }, 'WhatsApp connected');
     } else if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      const boomError = lastDisconnect?.error as { output?: { statusCode?: number } } | undefined;
+      const shouldReconnect = boomError?.output?.statusCode !== DisconnectReason.loggedOut;
 
       conn.status = shouldReconnect ? 'reconnecting' : 'logged_out';
       await updateAccountStatus(accountId, conn.status);
@@ -93,7 +94,7 @@ export async function createConnection(accountId: string): Promise<WASocket> {
       if (shouldReconnect && config.WHATSAPP_AUTO_RECONNECT) {
         logger.warn({ accountId, error: lastDisconnect?.error }, 'Connection closed, scheduling reconnect');
         eventBus.emit(EVENT_TYPES[3], accountId, lastDisconnect?.error);
-        scheduleReconnect(accountId, () => createConnection(accountId));
+        scheduleReconnect(accountId, async () => { await createConnection(accountId); });
       } else {
         logger.warn({ accountId }, 'Logged out');
         eventBus.emit(EVENT_TYPES[1], accountId);
@@ -161,7 +162,7 @@ async function handleIncomingMessage(accountId: string, socket: WASocket, msg: W
 
   const chatJid = msg.key.remoteJid;
   const senderJid = msg.key.participant || chatJid;
-  const timestamp = new Date(msg.messageTimestamp! * 1000);
+  const timestamp = new Date(Number(msg.messageTimestamp ?? 0) * 1000);
 
   const content = extractMessageContent(msg);
   const type = getMessageType(msg);
@@ -237,28 +238,28 @@ function extractMessageContent(msg: WAMessage): any {
   if (!msg.message) return null;
 
   const messageType = Object.keys(msg.message)[0] as keyof proto.IMessage;
-  const content = msg.message[messageType];
+  const content = msg.message[messageType] as Record<string, any>;
 
   switch (messageType) {
     case 'conversation':
     case 'extendedTextMessage':
-      return content.text;
+      return content?.text ?? '';
     case 'imageMessage':
-      return { caption: content.caption, mimetype: content.mimetype };
+      return { caption: content?.caption ?? '', mimetype: content?.mimetype ?? '' };
     case 'videoMessage':
-      return { caption: content.caption, mimetype: content.mimetype };
+      return { caption: content?.caption ?? '', mimetype: content?.mimetype ?? '' };
     case 'documentMessage':
-      return { filename: content.fileName, mimetype: content.mimetype, caption: content.caption };
+      return { filename: content?.fileName ?? '', mimetype: content?.mimetype ?? '', caption: content?.caption ?? '' };
     case 'audioMessage':
-      return { mimetype: content.mimetype, seconds: content.seconds };
+      return { mimetype: content?.mimetype ?? '', seconds: content?.seconds ?? 0 };
     case 'locationMessage':
-      return { latitude: content.degreesLatitude, longitude: content.degreesLongitude, name: content.name, address: content.address };
+      return { latitude: content?.degreesLatitude ?? 0, longitude: content?.degreesLongitude ?? 0, name: content?.name ?? '', address: content?.address ?? '' };
     case 'contactMessage':
-      return { displayName: content.displayName, vcard: content.vcard };
+      return { displayName: content?.displayName ?? '', vcard: content?.vcard ?? '' };
     case 'reactionMessage':
-      return { key: content.key, reaction: content.text };
+      return { key: content?.key, reaction: content?.text ?? '' };
     case 'stickerMessage':
-      return { mimetype: content.mimetype };
+      return { mimetype: content?.mimetype ?? '' };
     default:
       return { type: messageType };
   }
@@ -281,18 +282,45 @@ async function storeMessage(data: {
   status: string;
 }): Promise<void> {
   const db = getDatabase();
+  // Map Baileys message types to our enum
+  const messageTypeMap: Record<string, 'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'contact' | 'reaction' | 'sticker' | 'poll'> = {
+    'conversation': 'text',
+    'extendedTextMessage': 'text',
+    'imageMessage': 'image',
+    'videoMessage': 'video',
+    'documentMessage': 'document',
+    'audioMessage': 'audio',
+    'locationMessage': 'location',
+    'contactMessage': 'contact',
+    'reactionMessage': 'reaction',
+    'stickerMessage': 'sticker',
+    'pollMessage': 'poll',
+  };
+
+  const mappedMessageType = messageTypeMap[data.messageType] || 'text';
+  const mappedStatus = ['pending', 'sent', 'delivered', 'read', 'failed'].includes(data.status) ? data.status : 'pending';
+
   await db.insert(messages).values({
     id: crypto.randomUUID(),
-    ...data,
+    accountId: data.accountId,
+    chatJid: data.chatJid,
+    messageId: data.messageId,
+    senderJid: data.senderJid,
+    messageType: mappedMessageType,
+    messageContent: data.messageContent,
+    direction: data.direction,
+    timestamp: data.timestamp,
+    status: mappedStatus as 'pending' | 'sent' | 'delivered' | 'read' | 'failed',
     createdAt: new Date(),
   });
 }
 
 async function updateMessageStatus(accountId: string, messageId: string, status: string): Promise<void> {
   const db = getDatabase();
+  const mappedStatus = ['pending', 'sent', 'delivered', 'read', 'failed'].includes(status) ? status : 'pending';
   await db
     .update(messages)
-    .set({ status })
+    .set({ status: mappedStatus as 'pending' | 'sent' | 'delivered' | 'read' | 'failed' })
     .where(and(eq(messages.accountId, accountId), eq(messages.messageId, messageId)));
 }
 

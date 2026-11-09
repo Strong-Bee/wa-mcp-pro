@@ -53,7 +53,7 @@ export function validateInput<T>(schema: z.ZodSchema<T>, data: unknown): T {
   if (!result.success) {
     const errors = result.error.flatten().fieldErrors;
     const message = Object.entries(errors)
-      .map(([field, msgs]) => `${field}: ${msgs.join(', ')}`)
+      .map(([field, msgs]: [string, string[] | undefined]) => `${field}: ${(msgs ?? []).join(', ')}`)
       .join('; ');
     throw new AppError(ERROR_CODES.VALIDATION_ERROR, message, 400, { errors });
   }
@@ -65,7 +65,7 @@ export function validateOrThrow<T>(schema: z.ZodSchema<T>, data: unknown, contex
   if (!result.success) {
     const errors = result.error.flatten().fieldErrors;
     const message = Object.entries(errors)
-      .map(([field, msgs]) => `${field}: ${msgs.join(', ')}`)
+      .map(([field, msgs]: [string, string[] | undefined]) => `${field}: ${(msgs ?? []).join(', ')}`)
       .join('; ');
     throw new AppError(ERROR_CODES.VALIDATION_ERROR, `${context ? context + ': ' : ''}${message}`, 400, { errors });
   }

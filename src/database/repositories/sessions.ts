@@ -9,13 +9,14 @@ export async function createSession(data: Omit<NewSession, 'id' | 'createdAt' | 
 
   const session: NewSession = {
     id,
-    ...data,
+    accountId: data.accountId,
+    encryptedCredentials: data.encryptedCredentials,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(sessions).values(session);
-  return session;
+  return session as Session;
 }
 
 export async function getSessionById(id: string): Promise<Session | null> {
@@ -44,11 +45,15 @@ export async function updateSessionCredentials(id: string, encryptedCredentials:
 export async function deleteSession(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(sessions).where(eq(sessions.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }
 
 export async function deleteSessionByAccountId(accountId: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(sessions).where(eq(sessions.accountId, accountId));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }

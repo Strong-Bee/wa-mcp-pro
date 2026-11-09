@@ -9,13 +9,17 @@ export async function createGroup(data: Omit<NewGroup, 'id' | 'createdAt' | 'upd
 
   const group: NewGroup = {
     id,
-    ...data,
+    accountId: data.accountId,
+    groupJid: data.groupJid,
+    subject: data.subject,
+    description: data.description ?? null,
+    ownerJid: data.ownerJid,
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(groups).values(group);
-  return group;
+  return group as Group;
 }
 
 export async function upsertGroup(data: Omit<NewGroup, 'id' | 'createdAt' | 'updatedAt'>): Promise<Group> {
@@ -35,7 +39,7 @@ export async function upsertGroup(data: Omit<NewGroup, 'id' | 'createdAt' | 'upd
       .set({ ...data, updatedAt: now })
       .where(eq(groups.id, existing[0].id))
       .returning();
-    return result[0];
+    return result[0] as Group;
   }
 
   return createGroup(data);
@@ -93,5 +97,7 @@ export async function updateGroup(id: string, data: Partial<Omit<Group, 'id' | '
 export async function deleteGroup(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(groups).where(eq(groups.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }

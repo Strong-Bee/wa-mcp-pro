@@ -1,6 +1,7 @@
+import { randomUUID } from 'crypto';
 import { getDatabase } from '../database/client.js';
 import { apiKeys } from '../database/schema/api_keys.js';
-import { hashApiKey, generateApiKey, PERMISSIONS } from '../security/api-key.js';
+import { hashApiKey, generateApiKey as generateKey, PERMISSIONS } from '../security/api-key.js';
 import { getLogger } from '../core/logger.js';
 
 const logger = getLogger().child({ component: 'GenerateApiKeyScript' });
@@ -11,10 +12,10 @@ export async function generateApiKey(
   expiresAt?: Date
 ): Promise<{ apiKey: any; plainKey: string }> {
   const db = getDatabase();
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   const now = new Date();
 
-  const plainKey = generateApiKey();
+  const plainKey = generateKey();
   const keyHash = await hashApiKey(plainKey);
 
   const validatedPermissions = permissions.filter(p => PERMISSIONS.includes(p as any));

@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import { getDatabase } from '../../database/client.js';
@@ -46,7 +47,7 @@ const listSchema = baseAccountSchema.extend({
 });
 
 export function registerAutomationTools(server: Server): void {
-  server.setRequestHandler('tools/list', async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
       {
         name: 'whatsapp_create_auto_reply',
@@ -136,7 +137,7 @@ export function registerAutomationTools(server: Server): void {
     ],
   }));
 
-  server.setRequestHandler('tools/call', async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {
@@ -148,13 +149,21 @@ export function registerAutomationTools(server: Server): void {
           const id = crypto.randomUUID();
           const now = new Date();
 
-          await db.insert(automations).values({
+          // Map snake_case from schema to camelCase for database
+          const dbData = {
             id,
             accountId: account_id,
-            ...data,
+            name: data.name,
+            triggerType: data.trigger_type,
+            triggerValue: data.trigger_value,
+            response: data.response,
+            enabled: data.enabled,
+            cooldown: data.cooldown,
             createdAt: now,
             updatedAt: now,
-          });
+          };
+
+          await db.insert(automations).values(dbData);
 
           return { content: [{ type: 'text', text: JSON.stringify({ id, ...data }, null, 2) }] };
         }
@@ -182,7 +191,9 @@ export function registerAutomationTools(server: Server): void {
             .delete(automations)
             .where(and(eq(automations.id, automation_id), eq(automations.accountId, account_id)));
 
-          if ((result.changes ?? 0) === 0) {
+          // libsql ResultSet uses rowsAffected
+          const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+          if (changes === 0) {
             throw new AppError(ERROR_CODES.INTERNAL_SERVER_ERROR, 'Automation not found');
           }
 

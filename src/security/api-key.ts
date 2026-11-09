@@ -1,5 +1,5 @@
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
-import { scrypt, promisify } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual, scrypt } from 'crypto';
+import { promisify } from 'util';
 
 const scryptAsync = promisify(scrypt);
 
@@ -43,6 +43,7 @@ export const PERMISSIONS = [
   'automation:read',
   'automation:manage',
   'system:read',
+  '*',
 ] as const;
 
 export type Permission = typeof PERMISSIONS[number];

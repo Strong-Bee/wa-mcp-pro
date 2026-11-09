@@ -1,8 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { matchTrigger, checkConditions } from '../../src/automation/rules.js';
-import { checkRateLimit, checkOptOut, checkLoopPrevention, validateAutomationExecution } from '../../src/automation/guards.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock the database module at the top level (vi.mock is hoisted)
+vi.mock('../../src/database/client.js', () => ({
+  getDatabase: vi.fn(),
+}));
+
+vi.mock('../../src/database/schema/messages.js', () => ({
+  messages: {
+    accountId: 'accountId',
+    chatJid: 'chatJid',
+    direction: 'direction',
+    messageContent: 'messageContent',
+    timestamp: 'timestamp',
+  },
+}));
+
+import { getDatabase } from '../../src/database/client.js';
 
 describe('Automation Rules', () => {
+  // Import inside to avoid hoisting issues with vi.mock
+  let matchTrigger: any;
+  let checkConditions: any;
+
+  beforeEach(async () => {
+    const engine = await import('../../src/automation/engine.js');
+    const rules = await import('../../src/automation/rules.js');
+    matchTrigger = engine.matchTrigger;
+    checkConditions = rules.checkConditions;
+  });
+
   describe('matchTrigger', () => {
     it('should match exact match', () => {
       const rule = { triggerType: 'exact_match' as const, triggerValue: 'hello' };
@@ -62,8 +88,20 @@ describe('Automation Rules', () => {
 });
 
 describe('Automation Guards', () => {
-  beforeEach(() => {
+  let checkRateLimit: any;
+  let checkOptOut: any;
+  let checkLoopPrevention: any;
+  let validateAutomationExecution: any;
+
+  beforeEach(async () => {
     vi.useFakeTimers();
+    vi.clearAllMocks();
+
+    const guards = await import('../../src/automation/guards.js');
+    checkRateLimit = guards.checkRateLimit;
+    checkOptOut = guards.checkOptOut;
+    checkLoopPrevention = guards.checkLoopPrevention;
+    validateAutomationExecution = guards.validateAutomationExecution;
   });
 
   afterEach(() => {
@@ -87,48 +125,34 @@ describe('Automation Guards', () => {
   });
 
   it('should check opt-out keywords', async () => {
-    const { getDatabase } = await import('../../src/database/client.js');
-    const { messages } = await import('../../src/database/schema/messages.js');
-
-    vi.mock('../../src/database/client.js', () => ({
-      getDatabase: () => ({
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              orderBy: () => ({
-                limit: () => Promise.resolve([
-                  { messageContent: 'STOP', direction: 'inbound' },
-                ]),
-              }),
-            }),
-          }),
-        }),
-      }));
+    const mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([
+        { messageContent: 'STOP', direction: 'inbound' },
+      ]),
+    };
+    (getDatabase as any).mockReturnValue(mockDb);
 
     const optedOut = await checkOptOut('acc1', 'user1');
     expect(optedOut).toBe(true);
   });
 
   it('should check loop prevention', async () => {
-    const { getDatabase } = await import('../../src/database/client.js');
-    const { messages } = await import('../../src/database/schema/messages.js');
-
-    vi.mock('../../src/database/client.js', () => ({
-      getDatabase: () => ({
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              orderBy: () => ({
-                limit: () => Promise.resolve([
-                  { messageContent: 'same response', direction: 'outbound' },
-                  { messageContent: 'same response', direction: 'outbound' },
-                  { messageContent: 'same response', direction: 'outbound' },
-                ]),
-              }),
-            }),
-          }),
-        }),
-      }));
+    const mockDb = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([
+        { messageContent: 'same response', direction: 'outbound' },
+        { messageContent: 'same response', direction: 'outbound' },
+        { messageContent: 'same response', direction: 'outbound' },
+      ]),
+    };
+    (getDatabase as any).mockReturnValue(mockDb);
 
     const looped = await checkLoopPrevention('acc1', 'chat1', 'same response');
     expect(looped).toBe(false);

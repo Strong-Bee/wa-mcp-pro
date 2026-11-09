@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { getConfig } from '../../config/env.js';
-import { validateApiKey } from '../../security/index.js';
+import { validateApiKey } from '../../database/repositories/api_keys.js';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
 
 export async function authMiddleware(app: FastifyInstance): Promise<void> {

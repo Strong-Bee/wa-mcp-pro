@@ -86,6 +86,6 @@ export async function deleteApiKey(id: string): Promise<boolean> {
 }
 
 export async function hasPermission(apiKey: ApiKey, permission: string): Promise<boolean> {
-  const permissions = JSON.parse(apiKey.permissions) as string[];
+  const permissions = JSON.parse(apiKey.permissions as string) as string[];
   return permissions.includes(permission) || permissions.includes('*');
 }

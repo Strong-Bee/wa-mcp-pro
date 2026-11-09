@@ -1,6 +1,6 @@
 import { getDatabase } from '../database/client.js';
 import { messages, chats, contacts } from '../database/schema/index.js';
-import { eq, and, desc, like, count, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, like, count, gte, lte, sql } from 'drizzle-orm';
 import { normalizeJid, isGroupJid } from './jid-utils.js';
 import { getLogger } from '../core/logger.js';
 
@@ -28,15 +28,16 @@ export async function getMessageHistory(options: MessageHistoryOptions): Promise
   }
 
   if (before) {
-    conditions.push(lte(messages.timestamp, before.getTime()));
+    conditions.push(lte(messages.timestamp, before));
   }
 
   if (after) {
-    conditions.push(gte(messages.timestamp, after.getTime()));
+    conditions.push(gte(messages.timestamp, after));
   }
 
   if (type) {
-    conditions.push(eq(messages.messageType, type));
+    // Use sql to compare enum column with string
+    conditions.push(sql`${messages.messageType} = ${type}`);
   }
 
   if (search) {

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, foreignKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, uniqueIndex, foreignKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { accounts } from './accounts.js';
 

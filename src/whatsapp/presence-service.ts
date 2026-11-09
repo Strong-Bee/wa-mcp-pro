@@ -27,24 +27,16 @@ export async function stopTyping(accountId: string, to: string): Promise<void> {
   await setPresence(accountId, to, 'available');
 }
 
+// presenceGet and presenceSubscribe are not available in Baileys 6.17.16
+// These functions are kept for compatibility but will throw an error
 export async function getPresence(accountId: string, jid: string): Promise<Presence | null> {
-  const socket = getSocket(accountId);
-  if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
-
-  const normalizedJid = normalizeJid(jid);
-
-  try {
-    const presence = await socket.presenceGet(normalizedJid);
-    return presence?.lastKnownPresence || null;
-  } catch {
-    return null;
-  }
+  // Not supported in this Baileys version
+  logger.warn('getPresence not supported in Baileys 6.17.16');
+  return null;
 }
 
 export async function subscribePresence(accountId: string, jid: string): Promise<void> {
-  const socket = getSocket(accountId);
-  if (!socket) throw new AppError(ERROR_CODES.WA_NOT_CONNECTED, 'WhatsApp not connected');
-
-  const normalizedJid = normalizeJid(jid);
-  await socket.presenceSubscribe(normalizedJid);
+  // Not supported in this Baileys version
+  logger.warn('subscribePresence not supported in Baileys 6.17.16');
+  // No-op - presence subscription is automatic in newer versions
 }

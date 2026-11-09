@@ -1,5 +1,5 @@
 import { getLogger } from '../core/logger.js';
-import { getDatabase, isDatabaseConnected } from '../database/client.js';
+import { getDatabase, isDatabaseConnected, getClient } from '../database/client.js';
 import { getConnectionStatus } from '../whatsapp/baileys-adapter.js';
 import { listAccounts } from '../whatsapp/connection-manager.js';
 import { sql } from 'drizzle-orm';
@@ -36,8 +36,8 @@ async function checkDatabase(): Promise<{ status: 'ok' | 'failed'; message?: str
       return { status: 'failed', message: 'Database not connected' };
     }
 
-    const db = getDatabase();
-    await db.execute(sql`SELECT 1`);
+    const client = getClient();
+    await client.execute('SELECT 1');
     return { status: 'ok' };
   } catch (error) {
     return { status: 'failed', message: error instanceof Error ? error.message : 'Unknown error' };

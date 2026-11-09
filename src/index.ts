@@ -35,7 +35,7 @@ async function main(): Promise<void> {
       const transport = await createStreamableHTTPTransport();
       const app = await createAPIServer();
       app.route({
-        method: 'ALL',
+        method: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
         url: '/mcp/*',
         handler: async (request, reply) => {
           await transport.handleRequest(request.raw, reply.raw);
