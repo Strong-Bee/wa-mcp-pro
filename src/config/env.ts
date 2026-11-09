@@ -1,5 +1,24 @@
 import { z } from 'zod';
 
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+
+  switch (value.trim().toLowerCase()) {
+    case 'true':
+    case '1':
+    case 'yes':
+    case 'on':
+      return true;
+    case 'false':
+    case '0':
+    case 'no':
+    case 'off':
+      return false;
+    default:
+      return value;
+  }
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_NAME: z.string().default('WA-MCP-Pro'),
@@ -9,7 +28,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
 
   MCP_TRANSPORT: z.enum(['stdio', 'http', 'hybrid']).default('stdio'),
-  MCP_HTTP_ENABLED: z.coerce.boolean().default(false),
+  MCP_HTTP_ENABLED: booleanFromEnv.default(false),
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(3001),
 
   DATABASE_URL: z.string().default('./storage/wa-mcp.db'),
@@ -18,8 +37,7 @@ const envSchema = z.object({
   MEDIA_DIRECTORY: z.string().default('./storage/media'),
   LOG_DIRECTORY: z.string().default('./storage/logs'),
 
-  ENCRYPTION_KEY: z.string().min(64).optional(),
-  API_KEY: z.string().min(64).optional(),
+  ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/, 'ENCRYPTION_KEY must be exactly 64 hexadecimal characters').optional(),
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
@@ -28,7 +46,7 @@ const envSchema = z.object({
 
   MAX_MEDIA_SIZE_MB: z.coerce.number().int().positive().default(50),
 
-  WHATSAPP_AUTO_RECONNECT: z.coerce.boolean().default(true),
+  WHATSAPP_AUTO_RECONNECT: booleanFromEnv.default(true),
   WHATSAPP_RECONNECT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
   WHATSAPP_MESSAGE_HISTORY_LIMIT: z.coerce.number().int().positive().default(10000),
 });
