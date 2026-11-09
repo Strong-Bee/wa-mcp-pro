@@ -1,16 +1,23 @@
 import path from 'path';
 
 export function sanitizeFilename(filename: string): string {
-  return path.basename(filename)
+  const safeSegments = filename
+    .split(/[\\/]+/)
+    .filter((segment) => segment && segment !== '.' && segment !== '..');
+
+  return safeSegments.join('_')
     .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^\.+/, '')
     .substring(0, 255);
 }
 
 export function sanitizePath(input: string, baseDir: string): string {
   const resolved = path.resolve(baseDir, input);
   const base = path.resolve(baseDir);
+  const relative = path.relative(base, resolved);
 
-  if (!resolved.startsWith(base)) {
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
     throw new Error('Path traversal attempt detected');
   }
 
@@ -19,12 +26,11 @@ export function sanitizePath(input: string, baseDir: string): string {
 
 export function sanitizeHtml(input: string): string {
   return input
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&apos;')
-    .replace(/\//g, '&#x2F;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function sanitizeSql(input: string): string {
@@ -32,7 +38,7 @@ export function sanitizeSql(input: string): string {
 }
 
 export function sanitizeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return input.replace(/[.*+?^$()|[\]\\]/g, '\\$&');
 }
 
 export function stripAnsi(input: string): string {
@@ -57,7 +63,7 @@ export function escapeMarkdown(input: string): string {
     .replace(/\*/g, '\\*')
     .replace(/_/g, '\\_')
     .replace(/~/g, '\\~')
-    .replace(/`/g, '\\`')
+    .replace(/\x60/g, '\\x60')
     .replace(/>/g, '\\>')
     .replace(/#/g, '\\#')
     .replace(/\+/g, '\\+')
