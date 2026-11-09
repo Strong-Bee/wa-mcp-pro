@@ -4,7 +4,7 @@ import { getLogger } from '../../core/logger.js';
 import { getConfig } from '../../config/env.js';
 import { getDatabase } from '../../database/client.js';
 import { messages } from '../../database/schema/messages.js';
-import { count } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
 
 const logger = getLogger().child({ component: 'SystemTools' });
