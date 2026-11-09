@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import { getDatabase } from '../../database/client.js';
@@ -45,7 +45,7 @@ const listSchema = baseAccountSchema.extend({
   enabled: z.boolean().optional(),
 });
 
-export function registerAutomationTools(server: Server): void {
+export function registerAutomationTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
