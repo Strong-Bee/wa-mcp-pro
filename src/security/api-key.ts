@@ -1,5 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { scrypt, promisify } from 'crypto';
+import { eq } from 'drizzle-orm';
+import { getDatabase } from '../database/client.js';
+import { apiKeys, type ApiKey } from '../database/schema/api_keys.js';
 
 const scryptAsync = promisify(scrypt);
 
@@ -12,7 +15,9 @@ export async function hashApiKey(key: string): Promise<string> {
 export async function verifyApiKey(key: string, storedHash: string): Promise<boolean> {
   try {
     const [saltHex, hashHex] = storedHash.split(':');
-    if (!saltHex || !hashHex) return false;
+    if (!saltHex || !hashHex || !/^[a-f0-9]{32}$/i.test(saltHex) || !/^[a-f0-9]{64}$/i.test(hashHex)) {
+      return false;
+    }
 
     const salt = Buffer.from(saltHex, 'hex');
     const hash = (await scryptAsync(key, salt, 32)) as Buffer;
@@ -23,6 +28,28 @@ export async function verifyApiKey(key: string, storedHash: string): Promise<boo
   } catch {
     return false;
   }
+}
+
+export async function validateApiKey(key: string): Promise<ApiKey | null> {
+  if (!/^wamp_[a-f0-9]{64}$/i.test(key)) return null;
+
+  const db = getDatabase();
+  const records = await db.select().from(apiKeys);
+
+  for (const record of records) {
+    if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) continue;
+
+    if (await verifyApiKey(key, record.keyHash)) {
+      await db
+        .update(apiKeys)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(apiKeys.id, record.id));
+
+      return record;
+    }
+  }
+
+  return null;
 }
 
 export function generateApiKey(): string {
