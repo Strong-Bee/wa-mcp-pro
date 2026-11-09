@@ -6,7 +6,7 @@ import { getLogger } from '../core/logger.js';
 
 const logger = getLogger().child({ component: 'MCPServer' });
 
-export function createMCPServer(): Server {
+export async function createMCPServer(): Promise<Server> {
   const server = new Server(
     {
       name: 'wa-mcp-pro',
@@ -21,7 +21,7 @@ export function createMCPServer(): Server {
     }
   );
 
-  registerTools(server);
+  await registerTools(server);
   registerResources(server);
   registerPrompts(server);
 
