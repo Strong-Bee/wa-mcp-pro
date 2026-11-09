@@ -121,7 +121,7 @@ export function registerPrompts(server: Server): void {
               role: 'user',
               content: {
                 type: 'text',
-                text: `You are a WhatsApp assistant for account ${args?.account_id}. Help the user with task: ${args?.task}. Use the available MCP tools to perform WhatsApp operations.`,
+                text: `You are a WhatsApp assistant for account ${args?.['account_id']}. Help the user with task: ${args?.['task']}. Use the available MCP tools to perform WhatsApp operations.`,
               },
             },
           ],
@@ -135,7 +135,7 @@ export function registerPrompts(server: Server): void {
               role: 'user',
               content: {
                 type: 'text',
-                text: `Compose a ${args?.message_type} message for ${args?.recipient} with content: ${args?.content}. Use the appropriate MCP tool to send it.`,
+                text: `Compose a ${args?.['message_type']} message for ${args?.['recipient']} with content: ${args?.['content']}. Use the appropriate MCP tool to send it.`,
               },
             },
           ],
@@ -149,7 +149,7 @@ export function registerPrompts(server: Server): void {
               role: 'user',
               content: {
                 type: 'text',
-                text: `Summarize the chat ${args?.chat_jid} for account ${args?.account_id}. Fetch the last ${args?.message_limit || 50} messages and provide a concise summary of the conversation.`,
+                text: `Summarize the chat ${args?.['chat_jid']} for account ${args?.['account_id']}. Fetch the last ${args?.['message_limit'] || 50} messages and provide a concise summary of the conversation.`,
               },
             },
           ],
@@ -163,7 +163,7 @@ export function registerPrompts(server: Server): void {
               role: 'user',
               content: {
                 type: 'text',
-                text: `You are a customer support agent for WhatsApp account ${args?.account_id}. An incoming message: "${args?.incoming_message}". Analyze the message, check if there are any automation rules that match, and suggest an appropriate response. If no automation matches, draft a professional response.`,
+                text: `You are a customer support agent for WhatsApp account ${args?.['account_id']}. An incoming message: "${args?.['incoming_message']}". Analyze the message, check if there are any automation rules that match, and suggest an appropriate response. If no automation matches, draft a professional response.`,
               },
             },
           ],
@@ -177,7 +177,7 @@ export function registerPrompts(server: Server): void {
               role: 'user',
               content: {
                 type: 'text',
-                text: `Manage group ${args?.group_jid} for account ${args?.account_id}. Action: ${args?.action}. Use the appropriate MCP tools to perform this group management task.`,
+                text: `Manage group ${args?.['group_jid']} for account ${args?.['account_id']}. Action: ${args?.['action']}. Use the appropriate MCP tools to perform this group management task.`,
               },
             },
           ],
