@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { matchTrigger, checkConditions } from '../../src/automation/rules.js';
 import { checkRateLimit, checkOptOut, checkLoopPrevention, validateAutomationExecution } from '../../src/automation/guards.js';
 
@@ -87,9 +87,6 @@ describe('Automation Guards', () => {
   });
 
   it('should check opt-out keywords', async () => {
-    const { getDatabase } = await import('../../src/database/client.js');
-    const { messages } = await import('../../src/database/schema/messages.js');
-
     vi.mock('../../src/database/client.js', () => ({
       getDatabase: () => ({
         select: () => ({
@@ -103,7 +100,8 @@ describe('Automation Guards', () => {
             }),
           }),
         }),
-      }));
+      }),
+    }));
 
     const optedOut = await checkOptOut('acc1', 'user1');
     expect(optedOut).toBe(true);
