@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -43,7 +43,7 @@ const createAccountSchema = z.object({
   phone_number: z.string().optional(),
 });
 
-export function registerConnectionTools(server: Server): void {
+export function registerConnectionTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
