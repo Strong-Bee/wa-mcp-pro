@@ -11,7 +11,7 @@ const logger = getLogger().child({ component: 'AutomationRoutes' });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
-  trigger_type: z.enum(['keyword', 'exact_match', 'regex', 'command']),
+  trigger_type: z.enum(['keyword', 'exact_match', 'regex', 'command', 'schedule']),
   trigger_value: z.string().min(1),
   response: z.string().min(1),
   enabled: z.boolean().default(true),
@@ -20,7 +20,7 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  trigger_type: z.enum(['keyword', 'exact_match', 'regex', 'command']).optional(),
+  trigger_type: z.enum(['keyword', 'exact_match', 'regex', 'command', 'schedule']).optional(),
   trigger_value: z.string().min(1).optional(),
   response: z.string().min(1).optional(),
   enabled: z.boolean().optional(),
@@ -37,6 +37,31 @@ const listSchema = z.object({
   enabled: z.boolean().optional(),
 });
 
+function mapToDb(data: z.infer<typeof createSchema> | z.infer<typeof updateSchema>): {
+  name?: string;
+  triggerType?: string;
+  triggerValue?: string;
+  response?: string;
+  enabled?: boolean;
+  cooldown?: number;
+} {
+  const result: {
+    name?: string;
+    triggerType?: string;
+    triggerValue?: string;
+    response?: string;
+    enabled?: boolean;
+    cooldown?: number;
+  } = {};
+  if ('name' in data && data.name !== undefined) result.name = data.name;
+  if ('trigger_type' in data && data.trigger_type !== undefined) result.triggerType = data.trigger_type;
+  if ('trigger_value' in data && data.trigger_value !== undefined) result.triggerValue = data.trigger_value;
+  if ('response' in data && data.response !== undefined) result.response = data.response;
+  if ('enabled' in data && data.enabled !== undefined) result.enabled = data.enabled;
+  if ('cooldown' in data && data.cooldown !== undefined) result.cooldown = data.cooldown;
+  return result;
+}
+
 export async function automationRoutes(app: FastifyInstance): Promise<void> {
   app.post('/automations', {
     preHandler: requireAutomationManage,
@@ -45,7 +70,7 @@ export async function automationRoutes(app: FastifyInstance): Promise<void> {
         type: 'object',
         properties: {
           name: { type: 'string' },
-          trigger_type: { type: 'string', enum: ['keyword', 'exact_match', 'regex', 'command'] },
+          trigger_type: { type: 'string', enum: ['keyword', 'exact_match', 'regex', 'command', 'schedule'] },
           trigger_value: { type: 'string' },
           response: { type: 'string' },
           enabled: { type: 'boolean', default: true },
@@ -61,12 +86,16 @@ export async function automationRoutes(app: FastifyInstance): Promise<void> {
     const id = crypto.randomUUID();
     const now = new Date();
 
+    const dbData = mapToDb(data);
     await db.insert(automations).values({
       id,
       accountId: account_id,
-      ...data,
-      createdAt: now,
-      updatedAt: now,
+      name: data.name,
+      triggerType: data.trigger_type,
+      triggerValue: data.trigger_value,
+      response: data.response,
+      enabled: data.enabled,
+      cooldown: data.cooldown,
     });
 
     return { id, ...data };
@@ -132,7 +161,7 @@ export async function automationRoutes(app: FastifyInstance): Promise<void> {
         type: 'object',
         properties: {
           name: { type: 'string' },
-          trigger_type: { type: 'string', enum: ['keyword', 'exact_match', 'regex', 'command'] },
+          trigger_type: { type: 'string', enum: ['keyword', 'exact_match', 'regex', 'command', 'schedule'] },
           trigger_value: { type: 'string' },
           response: { type: 'string' },
           enabled: { type: 'boolean' },
@@ -147,9 +176,17 @@ export async function automationRoutes(app: FastifyInstance): Promise<void> {
     const db = getDatabase();
     const now = new Date();
 
+    const updateData: Record<string, unknown> = { updatedAt: now };
+    if (data.name !== undefined) updateData['name'] = data.name;
+    if (data.trigger_type !== undefined) updateData['triggerType'] = data.trigger_type;
+    if (data.trigger_value !== undefined) updateData['triggerValue'] = data.trigger_value;
+    if (data.response !== undefined) updateData['response'] = data.response;
+    if (data.enabled !== undefined) updateData['enabled'] = data.enabled;
+    if (data.cooldown !== undefined) updateData['cooldown'] = data.cooldown;
+
     const result = await db
       .update(automations)
-      .set({ ...data, updatedAt: now })
+      .set(updateData)
       .where(and(eq(automations.id, id), eq(automations.accountId, account_id)))
       .returning();
 
@@ -171,7 +208,9 @@ export async function automationRoutes(app: FastifyInstance): Promise<void> {
       .delete(automations)
       .where(and(eq(automations.id, id), eq(automations.accountId, account_id)));
 
-    if ((result.changes ?? 0) === 0) {
+    // libsql ResultSet uses rowsAffected or changes depending on version
+    const changes = (result as { changes?: number; rowsAffected?: number }).changes ?? (result as { rowsAffected?: number }).rowsAffected ?? 0;
+    if (changes === 0) {
       throw new AppError(ERROR_CODES.INTERNAL_SERVER_ERROR, 'Automation not found', 404);
     }
 

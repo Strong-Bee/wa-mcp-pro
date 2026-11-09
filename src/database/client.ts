@@ -1,15 +1,15 @@
-import sqlite3 from 'sqlite3';
-import { drizzle, SQLite3Database } from 'drizzle-orm/sqlite3';
+import { createClient } from '@libsql/client';
+import { drizzle, LibSQLDatabase } from 'drizzle-orm/libsql';
 import * as schema from './schema/index.js';
 import { getConfig } from '../config/env.js';
 import { getLogger } from '../core/logger.js';
 import path from 'path';
 import fs from 'fs';
 
-let dbInstance: SQLite3Database<typeof schema> | null = null;
-let sqliteInstance: sqlite3.Database | null = null;
+let dbInstance: LibSQLDatabase<typeof schema> | null = null;
+let clientInstance: ReturnType<typeof createClient> | null = null;
 
-export function getDatabase(): SQLite3Database<typeof schema> {
+export function getDatabase(): LibSQLDatabase<typeof schema> {
   if (dbInstance) {
     return dbInstance;
   }
@@ -24,41 +24,33 @@ export function getDatabase(): SQLite3Database<typeof schema> {
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  sqliteInstance = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      logger.error({ error: err }, 'Failed to open database');
-      throw err;
-    }
-  });
+  // Use file: protocol for libsql local database
+  const libsqlUrl = `file:${dbPath}`;
+  clientInstance = createClient({ url: libsqlUrl });
 
-  sqliteInstance.exec('PRAGMA journal_mode = WAL;');
-  sqliteInstance.exec('PRAGMA foreign_keys = ON;');
-  sqliteInstance.exec('PRAGMA busy_timeout = 5000;');
-  sqliteInstance.exec('PRAGMA synchronous = NORMAL;');
-
-  dbInstance = drizzle(sqliteInstance, { schema, logger: config.NODE_ENV === 'development' });
+  dbInstance = drizzle(clientInstance, { schema, logger: config.NODE_ENV === 'development' });
 
   logger.info({ path: dbPath }, 'Database initialized');
 
   return dbInstance;
 }
 
-export function getSqlite(): sqlite3.Database {
-  if (!sqliteInstance) {
+export function getClient(): ReturnType<typeof createClient> {
+  if (!clientInstance) {
     getDatabase();
   }
-  return sqliteInstance!;
+  return clientInstance!;
 }
 
 export function closeDatabase(): void {
-  if (sqliteInstance) {
-    sqliteInstance.close();
-    sqliteInstance = null;
+  if (clientInstance) {
+    clientInstance.close();
+    clientInstance = null;
     dbInstance = null;
     getLogger().info('Database connection closed');
   }
 }
 
 export function isDatabaseConnected(): boolean {
-  return sqliteInstance !== null && dbInstance !== null;
+  return clientInstance !== null && dbInstance !== null;
 }

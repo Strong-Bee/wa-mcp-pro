@@ -89,9 +89,11 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'message'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, message, reply_to } = sendTextSchema.parse(request.body);
-    const result = await sendTextMessage({ to, message, replyTo: reply_to });
+  }, async (request, _reply) => {
+    const { to, message, reply_to } = sendTextSchema.parse(request.body);
+    const textOptions: { to: string; text: string; replyTo?: string } = { to, text: message };
+    if (reply_to !== undefined) textOptions.replyTo = reply_to;
+    const result = await sendTextMessage(textOptions);
     return result;
   });
 
@@ -110,11 +112,11 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'media_path'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, media_path, caption, reply_to } = sendMediaSchema.parse(request.body);
+  }, async (request, _reply) => {
+    const { to, media_path, caption } = sendMediaSchema.parse(request.body);
     const result = await sendMediaMessage({
       to,
-      media: { path: media_path, mimetype: 'image/jpeg', caption },
+      media: { path: media_path, mimetype: 'image/jpeg', caption: caption ?? '' },
     });
     return result;
   });
@@ -134,11 +136,11 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'media_path'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, media_path, caption, reply_to } = sendMediaSchema.parse(request.body);
+  }, async (request, _reply) => {
+    const { to, media_path, caption } = sendMediaSchema.parse(request.body);
     const result = await sendMediaMessage({
       to,
-      media: { path: media_path, mimetype: 'video/mp4', caption },
+      media: { path: media_path, mimetype: 'video/mp4', caption: caption ?? '' },
     });
     return result;
   });
@@ -159,12 +161,15 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'media_path'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, media_path, filename, caption, reply_to } = sendMediaSchema.parse(request.body);
-    const result = await sendMediaMessage({
-      to,
-      media: { path: media_path, mimetype: 'application/pdf', filename, caption },
-    });
+  }, async (request, _reply) => {
+    const { to, media_path, filename, caption } = sendMediaSchema.parse(request.body);
+    const mediaOptions: { path: string; mimetype: string; filename?: string; caption?: string } = {
+      path: media_path,
+      mimetype: 'application/pdf',
+      caption: caption ?? '',
+    };
+    if (filename !== undefined) mediaOptions.filename = filename;
+    const result = await sendMediaMessage({ to, media: mediaOptions });
     return result;
   });
 
@@ -182,8 +187,8 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'media_path'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, media_path, reply_to } = sendMediaSchema.parse(request.body);
+  }, async (request, _reply) => {
+    const { to, media_path } = sendMediaSchema.parse(request.body);
     const result = await sendMediaMessage({
       to,
       media: { path: media_path, mimetype: 'audio/ogg' },
@@ -207,9 +212,15 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'latitude', 'longitude'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, latitude, longitude, name, address } = sendLocationSchema.parse(request.body);
-    const result = await sendLocationMessage(to, { degreesLatitude: latitude, degreesLongitude: longitude, name, address });
+  }, async (request, _reply) => {
+    const { to, latitude, longitude, name, address } = sendLocationSchema.parse(request.body);
+    const locationOptions: { degreesLatitude: number; degreesLongitude: number; name?: string; address?: string } = {
+      degreesLatitude: latitude,
+      degreesLongitude: longitude,
+    };
+    if (name !== undefined) locationOptions.name = name;
+    if (address !== undefined) locationOptions.address = address;
+    const result = await sendLocationMessage(to, locationOptions);
     return result;
   });
 
@@ -227,8 +238,8 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'display_name', 'vcard'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, display_name, vcard } = sendContactSchema.parse(request.body);
+  }, async (request, _reply) => {
+    const { to, display_name, vcard } = sendContactSchema.parse(request.body);
     const result = await sendContactMessage(to, { displayName: display_name, vcard });
     return result;
   });
@@ -247,8 +258,8 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'to', 'message_id', 'reaction'],
       },
     },
-  }, async (request, reply) => {
-    const { account_id, to, message_id, reaction } = reactSchema.parse(request.body);
+  }, async (request, _reply) => {
+    const { to, message_id, reaction } = reactSchema.parse(request.body);
     await reactToMessage(to, message_id, reaction);
     return { success: true };
   });
@@ -266,7 +277,7 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'message_id', 'remote_jid'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { account_id, message_id, remote_jid } = deleteSchema.parse(request.body);
     await deleteMessage(account_id, message_id, remote_jid);
     return { success: true };
@@ -285,7 +296,7 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'chat_jid', 'message_ids'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { account_id, chat_jid, message_ids } = markReadSchema.parse(request.body);
     await markAsRead(account_id, chat_jid, message_ids);
     return { success: true };
@@ -304,7 +315,7 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
         required: ['account_id', 'query'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { account_id, query, limit } = searchSchema.parse(request.query);
     const results = await searchMessages(account_id, query, limit);
     return { messages: results };
@@ -312,7 +323,7 @@ export async function messagingRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/messages/:id', {
     preHandler: requireMessagesRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = request.params as { id: string };
     const { getMessageById } = await import('../../whatsapp/history-service.js');
     const message = await getMessageById('', id);

@@ -41,7 +41,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { limit, offset, search } = getContactsSchema.parse(request.query);
     const contacts = await getContacts(account_id, limit, offset, search);
@@ -50,7 +50,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/contacts/:jid', {
     preHandler: requireContactsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { jid } = getContactSchema.parse(request.params);
     const contact = await getContact(account_id, jid);
@@ -71,7 +71,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         required: ['phone_number'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { phone_number } = checkNumberSchema.parse(request.body);
     const result = await checkNumber(account_id, phone_number);
@@ -80,7 +80,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/contacts/:jid/profile-picture', {
     preHandler: requireContactsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { jid } = getContactSchema.parse(request.params);
     const url = await getProfilePicture(account_id, jid);
@@ -99,7 +99,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         required: ['query'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { query, limit } = z.object({ query: z.string(), limit: z.number().default(50) }).parse(request.query);
     const contacts = await searchContacts(account_id, query, limit);
@@ -108,7 +108,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/contacts/count', {
     preHandler: requireContactsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const count = await countContacts(account_id);
     return { account_id, count };

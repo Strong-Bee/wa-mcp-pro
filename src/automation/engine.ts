@@ -1,11 +1,7 @@
 import { getLogger } from '../core/logger.js';
-import { getDatabase } from '../database/client.js';
-import { automations, messages } from '../database/schema/index.js';
-import { eq, and, desc, gte } from 'drizzle-orm';
-import { eventBus, subscribe } from '../core/events.js';
+import { subscribe } from '../core/events.js';
 import { EVENT_TYPES } from '../config/constants.js';
 import { sendTextMessage } from '../whatsapp/message-service.js';
-import { AppError, ERROR_CODES } from '../core/errors.js';
 
 const logger = getLogger().child({ component: 'AutomationEngine' });
 
@@ -25,6 +21,10 @@ const ruleCache = new Map<string, AutomationRule[]>();
 const cooldownCache = new Map<string, number>();
 
 export async function loadAutomations(accountId: string): Promise<void> {
+  const { getDatabase } = await import('../database/client.js');
+  const { automations } = await import('../database/schema/index.js');
+  const { eq, and } = await import('drizzle-orm');
+
   const db = getDatabase();
   const rules = await db
     .select()
@@ -81,7 +81,7 @@ export async function processIncomingMessage(
   messageId: string,
   fromJid: string,
   text: string,
-  isGroup: boolean
+  _isGroup: boolean
 ): Promise<void> {
   const rules = ruleCache.get(accountId) || [];
   if (rules.length === 0) return;
@@ -112,11 +112,12 @@ async function executeAutomation(
 
   const result = await sendTextMessage({
     to: fromJid,
-    message: rule.response,
+    text: rule.response,
     replyTo: messageId,
   });
 
-  eventBus.emit(EVENT_TYPES[13], accountId, {
+  const { emit } = await import('../core/events.js');
+  await emit(EVENT_TYPES[13], accountId, {
     ruleId: rule.id,
     messageId,
     responseMessageId: result.messageId,
@@ -127,15 +128,18 @@ async function executeAutomation(
   logger.info({ accountId, ruleId: rule.id, responseMessageId: result.messageId }, 'Automation executed successfully');
 }
 
-export async function getAutomationLogs(accountId: string, limit: number = 50): Promise<any[]> {
+export async function getAutomationLogs(_accountId: string, _limit: number = 50): Promise<any[]> {
   // This would query an automation_logs table if we had one
   // For now, return empty array
   return [];
 }
 
-subscribe(EVENT_TYPES[4], async (accountId: string, message: any) => {
+type MessageEvent = { isFromMe?: boolean; type?: string; id?: string; from?: string; content?: string; isGroup?: boolean };
+
+subscribe(EVENT_TYPES[4], (...args: unknown[]) => {
+  const [accountId, message] = args as [string, MessageEvent];
   if (!message.isFromMe && message.type === 'text') {
-    await processIncomingMessage(accountId, message.id, message.from, message.content, message.isGroup);
+    processIncomingMessage(accountId, message.id || '', message.from || '', message.content || '', message.isGroup || false);
   }
 });
 

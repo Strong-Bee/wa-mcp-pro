@@ -10,13 +10,37 @@ import {
   logoutAccountSafe,
   listAccounts,
   getAccount,
-  getAccountStatus,
   getAccountQR,
   getAccountPairingCode,
 } from './whatsapp/connection-manager.js';
 import { generateApiKey } from './scripts/generate-api-key.js';
 
 const logger = getLogger().child({ component: 'CLI' });
+
+interface StartOptions {
+  transport: string;
+}
+
+interface AccountAddOptions {
+  id: string;
+  name: string;
+  phone?: string;
+}
+
+interface AccountIdOptions {
+  id: string;
+}
+
+interface PairingCodeOptions {
+  id: string;
+  phone: string;
+}
+
+interface GenerateApiKeyOptions {
+  name: string;
+  permissions?: string;
+  expires?: string;
+}
 
 const program = new Command();
 
@@ -29,10 +53,9 @@ program
   .command('start')
   .description('Start the server')
   .option('--transport <type>', 'Transport type: stdio, http, hybrid', 'stdio')
-  .action(async (options) => {
-    process.env.MCP_TRANSPORT = options.transport;
-    const { main } = await import('./index.js');
-    await main();
+  .action(async (options: StartOptions) => {
+    process.env['MCP_TRANSPORT'] = options.transport;
+    await import('./index.js');
   });
 
 program
@@ -41,9 +64,11 @@ program
   .requiredOption('--id <uuid>', 'Account ID')
   .requiredOption('--name <name>', 'Account name')
   .option('--phone <number>', 'Phone number')
-  .action(async (options) => {
+  .action(async (options: AccountAddOptions) => {
     await runMigrations();
-    await createAccount({ id: options.id, name: options.name, phoneNumber: options.phone });
+    const accountConfig: { id: string; name: string; phoneNumber?: string } = { id: options.id, name: options.name };
+    if (options.phone !== undefined) accountConfig.phoneNumber = options.phone;
+    await createAccount(accountConfig);
     logger.info({ id: options.id, name: options.name }, 'Account created');
   });
 
@@ -65,7 +90,7 @@ program
   .command('account:connect')
   .description('Connect an account')
   .requiredOption('--id <uuid>', 'Account ID')
-  .action(async (options) => {
+  .action(async (options: AccountIdOptions) => {
     await runMigrations();
     await connectAccount(options.id);
     logger.info({ id: options.id }, 'Connection initiated');
@@ -75,7 +100,7 @@ program
   .command('account:status')
   .description('Get account status')
   .requiredOption('--id <uuid>', 'Account ID')
-  .action(async (options) => {
+  .action(async (options: AccountIdOptions) => {
     await runMigrations();
     const account = await getAccount(options.id);
     if (!account) {
@@ -89,7 +114,7 @@ program
   .command('account:disconnect')
   .description('Disconnect an account')
   .requiredOption('--id <uuid>', 'Account ID')
-  .action(async (options) => {
+  .action(async (options: AccountIdOptions) => {
     await runMigrations();
     await disconnectAccountSafe(options.id);
     logger.info({ id: options.id }, 'Account disconnected');
@@ -99,7 +124,7 @@ program
   .command('account:logout')
   .description('Logout an account')
   .requiredOption('--id <uuid>', 'Account ID')
-  .action(async (options) => {
+  .action(async (options: AccountIdOptions) => {
     await runMigrations();
     await logoutAccountSafe(options.id);
     logger.info({ id: options.id }, 'Account logged out');
@@ -109,7 +134,7 @@ program
   .command('account:qr')
   .description('Get QR code for account')
   .requiredOption('--id <uuid>', 'Account ID')
-  .action(async (options) => {
+  .action(async (options: AccountIdOptions) => {
     await runMigrations();
     const qr = getAccountQR(options.id);
     if (!qr) {
@@ -124,7 +149,7 @@ program
   .description('Get pairing code for account')
   .requiredOption('--id <uuid>', 'Account ID')
   .requiredOption('--phone <number>', 'Phone number')
-  .action(async (options) => {
+  .action(async (options: PairingCodeOptions) => {
     await runMigrations();
     const code = await getAccountPairingCode(options.id, options.phone);
     console.log(code);
@@ -153,7 +178,7 @@ program
   .requiredOption('--name <name>', 'Key name')
   .option('--permissions <permissions>', 'Comma-separated permissions')
   .option('--expires <days>', 'Expiration in days')
-  .action(async (options) => {
+  .action(async (options: GenerateApiKeyOptions) => {
     await runMigrations();
     const permissions = options.permissions?.split(',') || [];
     const expiresAt = options.expires ? new Date(Date.now() + parseInt(options.expires) * 86400000) : undefined;

@@ -23,13 +23,13 @@ class Container {
   }
 
   async resolve<T>(token: Token<T>): Promise<T> {
-    const registration = this.registrations.get(token);
+    const registration = this.registrations.get(token) as Registration<T> | undefined;
     if (!registration) {
       throw new Error(`Token not registered: ${String(token)}`);
     }
 
     if (registration.singleton && registration.instance !== undefined) {
-      return registration.instance as T;
+      return registration.instance;
     }
 
     if (this.resolving.has(token)) {
@@ -52,13 +52,13 @@ class Container {
   }
 
   async resolveSync<T>(token: Token<T>): Promise<T> {
-    const registration = this.registrations.get(token);
+    const registration = this.registrations.get(token) as Registration<T> | undefined;
     if (!registration) {
       throw new Error(`Token not registered: ${String(token)}`);
     }
 
     if (registration.singleton && registration.instance !== undefined) {
-      return registration.instance as T;
+      return registration.instance;
     }
 
     if (this.resolving.has(token)) {
@@ -70,11 +70,15 @@ class Container {
     try {
       const instance = registration.factory();
 
-      if (registration.singleton) {
-        registration.instance = instance as T;
+      if (instance instanceof Promise) {
+        throw new Error(`Cannot resolve async factory synchronously for token: ${String(token)}`);
       }
 
-      return instance as T;
+      if (registration.singleton) {
+        registration.instance = instance;
+      }
+
+      return instance;
     } finally {
       this.resolving.delete(token);
     }

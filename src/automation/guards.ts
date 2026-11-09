@@ -1,7 +1,7 @@
 import { getLogger } from '../core/logger.js';
 import { getDatabase } from '../database/client.js';
 import { messages } from '../database/schema/messages.js';
-import { eq, and, gte } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 
 const logger = getLogger().child({ component: 'AutomationGuards' });
 
@@ -44,7 +44,7 @@ export async function checkOptOut(accountId: string, fromJid: string): Promise<b
       eq(messages.senderJid, fromJid),
       eq(messages.direction, 'inbound')
     ))
-    .orderBy(messages.timestamp.desc())
+    .orderBy(desc(messages.timestamp))
     .limit(10);
 
   for (const msg of recent) {
@@ -73,7 +73,7 @@ export async function checkLoopPrevention(
       eq(messages.chatJid, toJid),
       eq(messages.direction, 'outbound')
     ))
-    .orderBy(messages.timestamp.desc())
+    .orderBy(desc(messages.timestamp))
     .limit(10);
 
   let similarCount = 0;

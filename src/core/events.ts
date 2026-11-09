@@ -4,11 +4,6 @@ import { getLogger } from './logger.js';
 
 type EventHandler = (...args: unknown[]) => void | Promise<void>;
 
-interface EventSubscription {
-  event: EventType;
-  handler: EventHandler;
-}
-
 class EventBus extends EventEmitter {
   private subscriptions: Map<EventType, Set<EventHandler>> = new Map();
   private logger = getLogger().child({ component: 'EventBus' });
@@ -39,7 +34,7 @@ class EventBus extends EventEmitter {
     }
   }
 
-  async emit(event: EventType, ...args: unknown[]): Promise<void> {
+  async emitAsync(event: EventType, ...args: unknown[]): Promise<void> {
     this.logger.debug({ event, argCount: args.length }, 'Emitting event');
     this.emitSync(event, ...args);
 
@@ -55,6 +50,10 @@ class EventBus extends EventEmitter {
         })
       );
     }
+  }
+
+  override emit(event: EventType, ...args: unknown[]): boolean {
+    return super.emit(event, ...args);
   }
 
   private emitSync(event: EventType, ...args: unknown[]): void {
@@ -94,7 +93,7 @@ export function unsubscribe(event: EventType, handler: EventHandler): void {
 }
 
 export async function emit(event: EventType, ...args: unknown[]): Promise<void> {
-  await eventBus.emit(event, ...args);
+  await eventBus.emitAsync(event, ...args);
 }
 
 export function getEventBus(): EventBus {

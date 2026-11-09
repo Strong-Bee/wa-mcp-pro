@@ -1,7 +1,6 @@
 import { getDatabase } from '../client.js';
 import { accounts, Account, NewAccount } from '../schema/accounts.js';
 import { eq, desc, and } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'crypto';
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -14,13 +13,15 @@ export async function createAccount(data: Omit<NewAccount, 'id' | 'createdAt' | 
 
   const account: NewAccount = {
     id,
-    ...data,
+    name: data.name,
+    phoneNumber: data.phoneNumber,
+    status: data.status ?? 'disconnected',
     createdAt: now,
     updatedAt: now,
   };
 
   await db.insert(accounts).values(account);
-  return account;
+  return account as Account;
 }
 
 export async function getAccountById(id: string): Promise<Account | null> {

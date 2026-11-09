@@ -11,7 +11,7 @@ import { createAPIServer, startAPIServer } from './api/app.js';
 const logger = getLogger().child({ component: 'App' });
 
 export async function createApp(): Promise<{ app: Awaited<ReturnType<typeof createAPIServer>>; transport: Awaited<ReturnType<typeof createStreamableHTTPTransport>> }> {
-  const config = getConfig();
+  getConfig();
 
   await runMigrations();
   await seedDatabase();
@@ -28,7 +28,7 @@ export async function createApp(): Promise<{ app: Awaited<ReturnType<typeof crea
   const app = await createAPIServer();
 
   app.route({
-    method: 'ALL',
+    method: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
     url: '/mcp/*',
     handler: async (request, reply) => {
       await transport.handleRequest(request.raw, reply.raw);
@@ -40,7 +40,7 @@ export async function createApp(): Promise<{ app: Awaited<ReturnType<typeof crea
 }
 
 export async function startApp(): Promise<void> {
-  const config = getConfig();
+  getConfig();
   const { app } = await createApp();
   await startAPIServer(app);
 }

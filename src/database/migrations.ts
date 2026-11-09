@@ -1,4 +1,4 @@
-import { getSqlite } from './client.js';
+import { getClient } from './client.js';
 import { getLogger } from '../core/logger.js';
 
 const migrations = [
@@ -92,7 +92,7 @@ const migrations = [
     id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('keyword', 'exact_match', 'regex', 'command')),
+    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('keyword', 'exact_match', 'regex', 'command', 'schedule')),
     trigger_value TEXT NOT NULL,
     response TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
@@ -171,71 +171,51 @@ const migrations = [
 ];
 
 export async function runMigrations(): Promise<void> {
-  const sqlite = getSqlite();
+  const client = getClient();
   const logger = getLogger().child({ component: 'Migrations' });
 
   logger.info('Running database migrations');
 
-  return new Promise((resolve, reject) => {
-    sqlite.serialize(() => {
-      sqlite.exec('BEGIN TRANSACTION;');
+  await client.execute('BEGIN TRANSACTION;');
 
-      for (const migration of migrations) {
-        sqlite.exec(migration, (err) => {
-          if (err) {
-            logger.error({ error: err, migration }, 'Migration failed');
-            sqlite.exec('ROLLBACK;');
-            reject(err);
-            return;
-          }
-        });
-      }
-
-      sqlite.exec('COMMIT;', (err) => {
-        if (err) {
-          logger.error({ error: err }, 'Failed to commit migrations');
-          reject(err);
-        } else {
-          logger.info('Database migrations completed successfully');
-          resolve();
-        }
-      });
-    });
-  });
+  try {
+    for (const migration of migrations) {
+      await client.execute(migration);
+    }
+    await client.execute('COMMIT;');
+    logger.info('Database migrations completed successfully');
+  } catch (error) {
+    await client.execute('ROLLBACK;');
+    logger.error({ error }, 'Migration failed');
+    throw error;
+  }
 }
 
 export async function checkMigrations(): Promise<{ applied: number; pending: number }> {
-  const sqlite = getSqlite();
+  const client = getClient();
   const logger = getLogger().child({ component: 'Migrations' });
 
-  return new Promise((resolve, reject) => {
-    sqlite.all(`
-      SELECT name FROM sqlite_master
-      WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-    `, (err, tables) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+  const result = await client.execute(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+  `);
 
-      const existingTables = (tables as { name: string }[]).map(t => t.name);
-      const expectedTables = [
-        'accounts',
-        'sessions',
-        'messages',
-        'contacts',
-        'chats',
-        'groups',
-        'automations',
-        'api_keys',
-        'audit_logs',
-      ];
+  const existingTables = (result.rows as unknown as { name: string }[]).map(t => t.name);
+  const expectedTables = [
+    'accounts',
+    'sessions',
+    'messages',
+    'contacts',
+    'chats',
+    'groups',
+    'automations',
+    'api_keys',
+    'audit_logs',
+  ];
 
-      const applied = expectedTables.filter(t => existingTables.includes(t)).length;
-      const pending = expectedTables.length - applied;
+  const applied = expectedTables.filter(t => existingTables.includes(t)).length;
+  const pending = expectedTables.length - applied;
 
-      logger.debug({ applied, pending }, 'Migration status check');
-      resolve({ applied, pending });
-    });
-  });
+  logger.debug({ applied, pending }, 'Migration status check');
+  return { applied, pending };
 }

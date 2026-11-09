@@ -6,7 +6,7 @@ export const automations = sqliteTable('automations', {
   id: text('id').primaryKey(),
   accountId: text('account_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  triggerType: text('trigger_type', { enum: ['keyword', 'exact_match', 'regex', 'command'] }).notNull(),
+  triggerType: text('trigger_type', { enum: ['keyword', 'exact_match', 'regex', 'command', 'schedule'] }).notNull(),
   triggerValue: text('trigger_value').notNull(),
   response: text('response').notNull(),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),

@@ -55,7 +55,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { limit, offset } = z.object({ limit: z.number().default(50), offset: z.number().default(0) }).parse(request.query);
     const groups = await getGroups(account_id, limit, offset);
@@ -64,7 +64,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/groups/:group_jid', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const group = await getGroup(account_id, group_jid);
@@ -76,7 +76,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/groups/:group_jid/members', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const participants = await getGroupParticipants(account_id, group_jid);
@@ -95,7 +95,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['subject', 'participants'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { subject, participants } = createGroupSchema.parse(request.body);
     const groupId = await createGroup(account_id, subject, participants);
@@ -113,7 +113,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['participants'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { participants } = participantsSchema.parse(request.body);
@@ -132,7 +132,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['participants'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { participants } = participantsSchema.parse(request.body);
@@ -151,7 +151,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['participants'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { participants } = participantsSchema.parse(request.body);
@@ -170,7 +170,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['participants'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { participants } = participantsSchema.parse(request.body);
@@ -189,7 +189,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['subject'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { subject } = updateSubjectSchema.parse(request.body);
@@ -208,7 +208,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
         required: ['description'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const { description } = updateDescriptionSchema.parse(request.body);
@@ -218,7 +218,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/groups/:group_jid/invite', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const code = await getGroupInviteCode(account_id, group_jid);
@@ -227,7 +227,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/groups/:group_jid/invite/revoke', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     const code = await revokeGroupInviteCode(account_id, group_jid);
@@ -236,7 +236,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/groups/:group_jid/leave', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const { group_jid } = groupParamsSchema.parse(request.params);
     await leaveGroup(account_id, group_jid);
@@ -245,7 +245,7 @@ export async function groupRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/groups/count', {
     preHandler: requireGroupsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const account_id = (request as any).apiKey?.accountId || 'default';
     const count = await countGroups(account_id);
     return { account_id, count };

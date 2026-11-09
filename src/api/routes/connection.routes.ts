@@ -49,22 +49,24 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         required: ['id', 'name'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id, name, phone_number } = createAccountSchema.parse(request.body);
-    await createAccount({ id, name, phoneNumber: phone_number });
-    return reply.status(201).send({ id, name, phone_number, status: 'disconnected' });
+    const accountData: { id: string; name: string; phoneNumber?: string } = { id, name };
+    if (phone_number !== undefined) accountData.phoneNumber = phone_number;
+    await createAccount(accountData);
+    return { id, name, phone_number, status: 'disconnected' };
   });
 
   app.get('/accounts', {
     preHandler: requireAccountsRead,
-  }, async (request, reply) => {
+  }, async (_request, _reply) => {
     const accounts = await listAccounts();
     return accounts;
   });
 
   app.get('/accounts/:id', {
     preHandler: requireAccountsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     const account = await getAccount(id);
     if (!account) {
@@ -75,7 +77,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/accounts/:id/connect', {
     preHandler: requireAccountsManage,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     await connectAccount(id);
     return { message: `Account ${id} connection initiated` };
@@ -83,7 +85,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/accounts/:id/status', {
     preHandler: requireAccountsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     const status = getAccountStatus(id);
     return { account_id: id, status };
@@ -91,7 +93,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/accounts/:id/qr', {
     preHandler: requireAccountsRead,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     const qr = getAccountQR(id);
     if (!qr) {
@@ -111,7 +113,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
         required: ['phone_number'],
       },
     },
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     const { phone_number } = pairingCodeSchema.parse(request.body);
     const code = await getAccountPairingCode(id, phone_number);
@@ -120,7 +122,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/accounts/:id/disconnect', {
     preHandler: requireAccountsManage,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     await disconnectAccountSafe(id);
     return { message: `Account ${id} disconnected` };
@@ -128,7 +130,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/accounts/:id/logout', {
     preHandler: requireAccountsManage,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     await logoutAccountSafe(id);
     return { message: `Account ${id} logged out` };
@@ -136,7 +138,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/accounts/:id/reconnect', {
     preHandler: requireAccountsManage,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     await disconnectAccountSafe(id);
     await connectAccount(id);
@@ -145,7 +147,7 @@ export async function connectionRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/accounts/:id', {
     preHandler: requireAccountsManage,
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { id } = accountIdSchema.parse(request.params);
     await deleteAccount(id);
     return { message: `Account ${id} deleted` };

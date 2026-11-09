@@ -1,6 +1,7 @@
 import { ERROR_CODES, ErrorCode } from '../config/constants.js';
 
-export { ERROR_CODES, ErrorCode };
+export type { ErrorCode };
+export { ERROR_CODES };
 
 export class AppError extends Error {
   public readonly code: ErrorCode;
