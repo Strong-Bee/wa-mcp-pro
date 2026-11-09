@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import { downloadMedia, validateMedia, getMediaInfo, cleanupOldMedia } from '../../whatsapp/media-service.js';
@@ -28,7 +28,7 @@ const cleanupSchema = z.object({
   older_than_days: z.number().int().positive().default(30),
 });
 
-export function registerMediaTools(server: Server): void {
+export function registerMediaTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
