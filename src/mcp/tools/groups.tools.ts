@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import {
@@ -46,7 +46,7 @@ const updateDescriptionSchema = groupJidSchema.extend({
   description: z.string(),
 });
 
-export function registerGroupTools(server: Server): void {
+export function registerGroupTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
