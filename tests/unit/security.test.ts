@@ -55,7 +55,7 @@ describe('Security', () => {
     });
 
     it('should redact hex secrets', () => {
-      const input = 'secret: a'.repeat(64);
+      const input = 'secret: ' + 'a'.repeat(64);
       const result = redactSecrets(input);
       expect(result).toContain('[REDACTED_HEX_SECRET]');
     });
