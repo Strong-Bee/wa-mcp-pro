@@ -2,6 +2,9 @@ import { getLogger } from '../core/logger.js';
 import { subscribe } from '../core/events.js';
 import { EVENT_TYPES } from '../config/constants.js';
 import { sendTextMessage } from '../whatsapp/message-service.js';
+import { getDatabase } from '../database/client.js';
+import { automations } from '../database/schema/index.js';
+import { eq, and } from 'drizzle-orm';
 
 const logger = getLogger().child({ component: 'AutomationEngine' });
 
@@ -21,10 +24,6 @@ const ruleCache = new Map<string, AutomationRule[]>();
 const cooldownCache = new Map<string, number>();
 
 export async function loadAutomations(accountId: string): Promise<void> {
-  const { getDatabase } = await import('../database/client.js');
-  const { automations } = await import('../database/schema/index.js');
-  const { eq, and } = await import('drizzle-orm');
-
   const db = getDatabase();
   const rules = await db
     .select()

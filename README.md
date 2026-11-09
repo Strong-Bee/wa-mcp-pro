@@ -1,3 +1,5 @@
+![logo](./public/01-primary-logo.png)
+
 # WA-MCP Pro
 
 **Connect WhatsApp to Your AI Agents.**
@@ -407,5 +409,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#   w a - m c p - p r o  
+**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#   w a - m c p - p r o 
+ 
  

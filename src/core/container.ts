@@ -70,6 +70,7 @@ class Container {
     try {
       const instance = registration.factory();
 
+      // Check if the factory returns a Promise (async factory)
       if (instance instanceof Promise) {
         throw new Error(`Cannot resolve async factory synchronously for token: ${String(token)}`);
       }

@@ -2,13 +2,14 @@ import { getDatabase } from '../client.js';
 import { apiKeys, ApiKey, NewApiKey } from '../schema/api_keys.js';
 import { eq, desc, and, count } from 'drizzle-orm';
 import { hashApiKey, verifyApiKey } from '../../security/api-key.js';
+import { randomBytes } from 'crypto';
 
 export async function createApiKey(name: string, permissions: string[], expiresAt?: Date): Promise<{ apiKey: ApiKey; plainKey: string }> {
   const db = getDatabase();
   const id = crypto.randomUUID();
   const now = new Date();
 
-  const plainKey = `wamp_${crypto.randomBytes(32).toString('hex')}`;
+  const plainKey = `wamp_${randomBytes(32).toString('hex')}`;
   const keyHash = await hashApiKey(plainKey);
 
   const apiKey: NewApiKey = {
@@ -79,7 +80,9 @@ export async function updateApiKeyLastUsed(id: string): Promise<void> {
 export async function deleteApiKey(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }
 
 export async function hasPermission(apiKey: ApiKey, permission: string): Promise<boolean> {

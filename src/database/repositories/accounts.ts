@@ -66,5 +66,7 @@ export async function updateAccount(id: string, data: Partial<Omit<Account, 'id'
 export async function deleteAccount(id: string): Promise<boolean> {
   const db = getDatabase();
   const result = await db.delete(accounts).where(eq(accounts.id, id));
-  return (result.changes ?? 0) > 0;
+  // libsql ResultSet uses rowsAffected
+  const changes = (result as { rowsAffected?: number }).rowsAffected ?? 0;
+  return changes > 0;
 }
