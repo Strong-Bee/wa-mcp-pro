@@ -27,36 +27,6 @@ export function validateAutomationRule(data: unknown): AutomationRuleInput {
   return automationRuleSchema.parse(data);
 }
 
-export function matchTrigger(
-  rule: Pick<AutomationRuleInput, 'triggerType' | 'triggerValue'>,
-  message: string
-): boolean {
-  const input = message.trim();
-  const trigger = rule.triggerValue.trim();
-
-  if (!trigger || !input) return false;
-
-  switch (rule.triggerType) {
-    case 'exact_match':
-      return input.toLocaleLowerCase() === trigger.toLocaleLowerCase();
-    case 'keyword':
-      return input.toLocaleLowerCase().includes(trigger.toLocaleLowerCase());
-    case 'command': {
-      const command = trigger.startsWith('/') ? trigger : '/' + trigger;
-      const normalizedInput = input.toLocaleLowerCase();
-      const normalizedCommand = command.toLocaleLowerCase();
-      return normalizedInput === normalizedCommand || normalizedInput.startsWith(normalizedCommand + ' ');
-    }
-    case 'regex':
-      try {
-        return new RegExp(trigger, 'i').test(input);
-      } catch {
-        return false;
-      }
-    default:
-      return false;
-  }
-}
 
 export function checkConditions(
   rule: AutomationRuleInput,
