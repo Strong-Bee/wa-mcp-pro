@@ -100,6 +100,9 @@ pnpm start
 ```
 
 #### Remote HTTP
+
+For the remote MCP endpoint, the current dispatcher exposes both read and write tools and therefore requires a full-scope key. Generate one with all permissions: `accounts:read,accounts:manage,messages:read,messages:send,contacts:read,groups:read,automation:read,automation:manage,system:read`. Scoped keys remain suitable for the REST API. Per-tool authorization for MCP is a follow-up hardening item.
+
 ```json
 {
   "mcpServers": {
