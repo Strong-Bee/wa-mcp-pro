@@ -8,6 +8,7 @@ import { loadScheduledAutomations } from './automation/scheduler.js';
 import { startSTDIOTransport } from './mcp/transports/stdio.js';
 import { createStreamableHTTPTransport } from './mcp/transports/streamable-http.js';
 import { createAPIServer, startAPIServer } from './api/app.js';
+import { requireMcpAccess } from './api/middleware/authorization.js';
 
 const logger = getLogger().child({ component: 'Main' });
 
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
       app.route({
         method: 'ALL',
         url: '/mcp',
+        preHandler: requireMcpAccess,
         handler: async (request, reply) => {
           await transport.handleRequest(request.raw, reply.raw);
         },
@@ -44,6 +46,7 @@ async function main(): Promise<void> {
       app.route({
         method: 'ALL',
         url: '/mcp/*',
+        preHandler: requireMcpAccess,
         handler: async (request, reply) => {
           await transport.handleRequest(request.raw, reply.raw);
         },
