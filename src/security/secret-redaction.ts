@@ -4,10 +4,10 @@ const SECRET_PATTERNS = [
   { pattern: /[A-Za-z0-9+/]{16,}={0,2}/g, label: 'BASE64_SECRET' },
   { pattern: /sk-[a-zA-Z0-9]{20,}/g, label: 'OPENAI_KEY' },
   { pattern: /Bearer\s+[a-zA-Z0-9\-._~+/]+=*/g, label: 'BEARER_TOKEN' },
-  { pattern: /password["\s:=]+["']?[^"'\s]+/gi, label: 'PASSWORD' },
-  { pattern: /secret["\s:=]+["']?[^"'\s]+/gi, label: 'SECRET' },
-  { pattern: /api[_-]?key["\s:=]+["']?[^"'\s]+/gi, label: 'API_KEY' },
-  { pattern: /token["\s:=]+["']?[^"'\s]+/gi, label: 'TOKEN' },
+  { pattern: /password["\s:=]+["']?(?!\[REDACTED_)[^"'\s]+/gi, label: 'PASSWORD' },
+  { pattern: /secret["\s:=]+["']?(?!\[REDACTED_)[^"'\s]+/gi, label: 'SECRET' },
+  { pattern: /api[_-]?key["\s:=]+["']?(?!\[REDACTED_)[^"'\s]+/gi, label: 'API_KEY' },
+  { pattern: /token["\s:=]+["']?(?!\[REDACTED_)[^"'\s]+/gi, label: 'TOKEN' },
 ];
 
 export function redactSecrets(input: string): string {
