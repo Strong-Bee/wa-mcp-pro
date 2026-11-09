@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import { getConfig } from '../config/env.js';
 import { getLogger } from '../core/logger.js';
 import { registerRoutes } from './routes/index.js';
@@ -14,14 +14,15 @@ export async function createAPIServer(): Promise<FastifyInstance> {
 
   const app = Fastify({
     logger: false,
-    trustProxy: true,
+    // Do not trust arbitrary forwarded headers; configure a trusted proxy explicitly
+    // at the deployment boundary if proxy-aware client IP handling is required.
+    trustProxy: false,
   });
 
   app.setErrorHandler(async (error, request, reply) => {
     const correlationId = (request.headers['x-request-id'] as string) || crypto.randomUUID();
 
     let appError = isAppError(error) ? error : toAppError(error);
-    // Create new AppError with the correct correlationId since it's readonly
     if (appError.correlationId !== correlationId) {
       appError = new AppError(
         appError.code,
@@ -45,15 +46,13 @@ export async function createAPIServer(): Promise<FastifyInstance> {
     );
 
     const statusCode = appError.statusCode || 500;
-    const response = {
+    reply.status(statusCode).send({
       error: {
         code: appError.code || ERROR_CODES.INTERNAL_SERVER_ERROR,
         message: statusCode >= 500 ? 'Internal server error' : appError.message,
         correlationId,
       },
-    };
-
-    reply.status(statusCode).send(response);
+    });
   });
 
   app.setNotFoundHandler(async (request, reply) => {
