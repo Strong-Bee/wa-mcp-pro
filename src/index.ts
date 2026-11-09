@@ -36,7 +36,7 @@ async function main(): Promise<void> {
     if (config.MCP_TRANSPORT === 'http' || config.MCP_TRANSPORT === 'hybrid') {
       const transport = await createStreamableHTTPTransport();
       app.route({
-        method: 'ALL',
+        method: ['GET', 'POST', 'DELETE', 'OPTIONS'],
         url: '/mcp',
         preHandler: requireMcpAccess,
         handler: async (request, reply) => {
