@@ -1,4 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { getLogger } from '../core/logger.js';
 import { listAccounts } from '../whatsapp/connection-manager.js';
 import { getDatabase } from '../database/client.js';
@@ -11,7 +12,7 @@ const logger = getLogger().child({ component: 'ResourceRegistry' });
 export function registerResources(server: Server): void {
   logger.info('Registering MCP resources');
 
-  server.setRequestHandler('resources/list', async () => {
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
     const accounts = await listAccounts();
 
     const resources = [
@@ -73,7 +74,7 @@ export function registerResources(server: Server): void {
     return { resources };
   });
 
-  server.setRequestHandler('resources/read', async (request) => {
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const uri = request.params.uri;
 
     if (uri === 'whatsapp://system/status') {
