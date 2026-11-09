@@ -7,7 +7,7 @@ const logger = getLogger().child({ component: 'STDITransport' });
 export async function startSTDIOTransport(): Promise<void> {
   logger.info('Starting MCP STDIO transport');
 
-  const server = createMCPServer();
+  const server = await createMCPServer();
   const transport = new StdioServerTransport();
 
   await server.connect(transport);
