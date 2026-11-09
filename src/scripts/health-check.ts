@@ -9,7 +9,7 @@ async function main(): Promise<void> {
 
   // A WhatsApp account may be temporarily disconnected without the process
   // itself being unhealthy. Database failure, however, must fail container health.
-  if (result.checks.database?.status === 'failed' || result.status === 'unhealthy') {
+  if (result.checks['database']?.status === 'failed' || result.status === 'unhealthy') {
     process.exitCode = 1;
   }
 }
