@@ -1,6 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { matchTrigger, checkConditions } from '../../src/automation/rules.js';
-import { checkRateLimit, checkOptOut, checkLoopPrevention, validateAutomationExecution } from '../../src/automation/guards.js';
+import { checkRateLimit, checkOptOut, checkLoopPrevention } from '../../src/automation/guards.js';
+
+const dbMock = vi.hoisted(() => ({
+  messages: [] as Array<{ messageContent: string; direction: string }>,
+}));
+
+vi.mock('../../src/database/client.js', () => ({
+  getDatabase: () => ({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => ({
+            limit: () => Promise.resolve(dbMock.messages),
+          }),
+        }),
+      }),
+    }),
+  }),
+}));
 
 describe('Automation Rules', () => {
   describe('matchTrigger', () => {
@@ -64,6 +82,7 @@ describe('Automation Rules', () => {
 describe('Automation Guards', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    dbMock.messages = [];
   });
 
   afterEach(() => {
@@ -87,47 +106,17 @@ describe('Automation Guards', () => {
   });
 
   it('should check opt-out keywords', async () => {
-    vi.mock('../../src/database/client.js', () => ({
-      getDatabase: () => ({
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              orderBy: () => ({
-                limit: () => Promise.resolve([
-                  { messageContent: 'STOP', direction: 'inbound' },
-                ]),
-              }),
-            }),
-          }),
-        }),
-      }),
-    }));
-
+    dbMock.messages = [{ messageContent: 'STOP', direction: 'inbound' }];
     const optedOut = await checkOptOut('acc1', 'user1');
     expect(optedOut).toBe(true);
   });
 
   it('should check loop prevention', async () => {
-    const { getDatabase } = await import('../../src/database/client.js');
-    const { messages } = await import('../../src/database/schema/messages.js');
-
-    vi.mock('../../src/database/client.js', () => ({
-      getDatabase: () => ({
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              orderBy: () => ({
-                limit: () => Promise.resolve([
-                  { messageContent: 'same response', direction: 'outbound' },
-                  { messageContent: 'same response', direction: 'outbound' },
-                  { messageContent: 'same response', direction: 'outbound' },
-                ]),
-              }),
-            }),
-          }),
-        }),
-      }));
-
+    dbMock.messages = [
+      { messageContent: 'same response', direction: 'outbound' },
+      { messageContent: 'same response', direction: 'outbound' },
+      { messageContent: 'same response', direction: 'outbound' },
+    ];
     const looped = await checkLoopPrevention('acc1', 'chat1', 'same response');
     expect(looped).toBe(false);
   });
