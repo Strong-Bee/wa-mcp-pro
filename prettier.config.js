@@ -7,5 +7,4 @@ export default {
   bracketSpacing: true,
   arrowParens: 'always',
   endOfLine: 'lf',
-  plugins: ['prettier-plugin-organize-imports'],
 };
