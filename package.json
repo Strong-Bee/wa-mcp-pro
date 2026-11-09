@@ -1,0 +1,78 @@
+{
+  "name": "wa-mcp-pro",
+  "version": "1.0.0",
+  "description": "WA-MCP Pro - Production-Ready WhatsApp MCP Server Powered by Baileys",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "start:stdio": "node dist/index.js --transport=stdio",
+    "start:http": "node dist/index.js --transport=http",
+    "start:hybrid": "node dist/index.js --transport=hybrid",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:studio": "tsx scripts/studio.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "generate:api-key": "tsx scripts/generate-api-key.ts",
+    "skills:validate": "tsx scripts/validate-skills.ts validate",
+    "skills:list": "tsx scripts/validate-skills.ts list",
+    "skills:check": "tsx scripts/validate-skills.ts check",
+    "docker:build": "docker build -t wa-mcp-pro .",
+    "docker:run": "docker-compose up -d",
+    "docker:stop": "docker-compose down"
+  },
+  "bin": {
+    "wa-mcp": "dist/cli.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "mcp",
+    "baileys",
+    "model-context-protocol",
+    "automation",
+    "ai-agents"
+  ],
+  "author": "WA-MCP Pro Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/swagger": "^8.14.0",
+    "@fastify/swagger-ui": "^4.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@whiskeysockets/baileys": "^6.7.0",
+    "sqlite3": "^5.1.7",
+    "drizzle-orm": "^0.33.0",
+    "fastify": "^4.28.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "qrcode": "^1.5.0",
+    "zod": "^3.23.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.0",
+    "@types/sqlite3": "^3.1.11",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "drizzle-kit": "^0.24.0"
+  }
+}
