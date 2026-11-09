@@ -75,7 +75,7 @@ pnpm db:migrate
 pnpm db:seed
 
 # Generate API key
-pnpm generate-api-key --name "My App" --permissions "accounts:read,messages:send"
+pnpm generate:api-key -- --name "My App" --permissions "accounts:read,messages:send"
 
 # Start server
 pnpm start
@@ -289,7 +289,7 @@ pnpm start
 | `MEDIA_DIRECTORY` | Media storage | `./storage/media` |
 | `LOG_DIRECTORY` | Log storage | `./storage/logs` |
 | `ENCRYPTION_KEY` | 32-byte hex key | *required* |
-| `API_KEY` | API key for HTTP | *required* |
+| API credentials | Generate and store an API key using the CLI; plaintext keys are shown once |
 | `LOG_LEVEL` | Log level | `info` |
 | `MAX_MEDIA_SIZE_MB` | Max media size | `50` |
 
@@ -409,10 +409,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-<<<<<<< HEAD
-**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#� �w�a�-�m�c�p�-�p�r�o�
-�
-�
-=======
-**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#
->>>>>>> 099d0ae6c4eb8791a3a1f2240c1f0a0c7bdccad8
+**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.
