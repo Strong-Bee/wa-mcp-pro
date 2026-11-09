@@ -1,17 +1,23 @@
-import { getConfig } from '../config/env.js';
 import { getLogger } from '../core/logger.js';
 import { getDatabase } from '../database/client.js';
 import { accounts } from '../database/schema/accounts.js';
 import { eq } from 'drizzle-orm';
-import { createConnection, getSocket, getConnectionStatus, getQRCode, getPairingCode, disconnectAccount, logoutAccount, requestPairingCode } from './baileys-adapter.js';
+import {
+  createConnection,
+  getConnectionStatus,
+  getQRCode,
+  disconnectAccount,
+  logoutAccount,
+  requestPairingCode,
+} from './baileys-adapter.js';
 import { sessionManager } from './session-manager.js';
 import { normalizeJid } from './jid-utils.js';
 import { ConnectionState } from '../config/constants.js';
 import { AppError, ERROR_CODES } from '../core/errors.js';
 
 const logger = getLogger().child({ component: 'ConnectionManager' });
-
 const accountLocks = new Map<string, Promise<void>>();
+const UNASSIGNED_PHONE_PREFIX = 'unassigned:';
 
 export interface AccountConfig {
   id: string;
@@ -19,9 +25,12 @@ export interface AccountConfig {
   phoneNumber?: string;
 }
 
+function displayPhoneNumber(phoneNumber: string): string {
+  return phoneNumber.startsWith(UNASSIGNED_PHONE_PREFIX) ? '' : phoneNumber;
+}
+
 export async function createAccount(config: AccountConfig): Promise<void> {
   const db = getDatabase();
-
   const existing = await db
     .select()
     .from(accounts)
@@ -32,10 +41,14 @@ export async function createAccount(config: AccountConfig): Promise<void> {
     throw new AppError(ERROR_CODES.INTERNAL_SERVER_ERROR, 'Account already exists', 409);
   }
 
+  // The current SQLite schema requires a unique, non-null phone value.
+  // Use a deterministic internal placeholder until the account is paired.
+  const phoneNumber = config.phoneNumber?.trim() || `${UNASSIGNED_PHONE_PREFIX}${config.id}`;
+
   await db.insert(accounts).values({
     id: config.id,
     name: config.name,
-    phoneNumber: config.phoneNumber || '',
+    phoneNumber,
     status: 'disconnected',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -45,13 +58,13 @@ export async function createAccount(config: AccountConfig): Promise<void> {
 }
 
 export async function connectAccount(accountId: string): Promise<void> {
-  let lock = accountLocks.get(accountId);
-  if (lock) {
-    await lock;
+  const existingLock = accountLocks.get(accountId);
+  if (existingLock) {
+    await existingLock;
     return;
   }
 
-  lock = (async () => {
+  const lock = (async () => {
     const status = getConnectionStatus(accountId);
     if (status === 'connected' || status === 'connecting' || status === 'qr_pending' || status === 'reconnecting') {
       logger.debug({ accountId, status }, 'Account already connecting/connected');
@@ -63,18 +76,20 @@ export async function connectAccount(accountId: string): Promise<void> {
       logger.info({ accountId }, 'No session found, will generate QR');
     }
 
-    try {
-      await createConnection(accountId);
-    } catch (error) {
-      logger.error({ accountId, error }, 'Failed to connect account');
-      throw error;
-    } finally {
-      accountLocks.delete(accountId);
-    }
+    await createConnection(accountId);
   })();
 
   accountLocks.set(accountId, lock);
-  await lock;
+  try {
+    await lock;
+  } catch (error) {
+    logger.error({ accountId, error }, 'Failed to connect account');
+    throw error;
+  } finally {
+    if (accountLocks.get(accountId) === lock) {
+      accountLocks.delete(accountId);
+    }
+  }
 }
 
 export async function disconnectAccountSafe(accountId: string): Promise<void> {
@@ -103,11 +118,11 @@ export async function listAccounts(): Promise<Array<{ id: string; name: string; 
   const db = getDatabase();
   const dbAccounts = await db.select().from(accounts);
 
-  return dbAccounts.map((acc) => ({
-    id: acc.id,
-    name: acc.name,
-    phoneNumber: acc.phoneNumber,
-    status: getConnectionStatus(acc.id),
+  return dbAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    phoneNumber: displayPhoneNumber(account.phoneNumber),
+    status: getConnectionStatus(account.id),
   }));
 }
 
@@ -116,7 +131,6 @@ export async function deleteAccount(accountId: string): Promise<void> {
 
   const db = getDatabase();
   await db.delete(accounts).where(eq(accounts.id, accountId));
-
   await sessionManager.deleteSession(accountId);
 
   logger.info({ accountId }, 'Account deleted');
@@ -131,7 +145,7 @@ export async function getAccount(accountId: string): Promise<{ id: string; name:
   return {
     id: result[0].id,
     name: result[0].name,
-    phoneNumber: result[0].phoneNumber,
+    phoneNumber: displayPhoneNumber(result[0].phoneNumber),
     status: getConnectionStatus(result[0].id),
   };
 }
