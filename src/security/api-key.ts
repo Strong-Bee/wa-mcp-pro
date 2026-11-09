@@ -1,5 +1,5 @@
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
-import { scrypt, promisify } from 'crypto';
+import { createHash, randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
 import { eq } from 'drizzle-orm';
 import { getDatabase } from '../database/client.js';
 import { apiKeys, type ApiKey } from '../database/schema/api_keys.js';
@@ -73,18 +73,19 @@ export const PERMISSIONS = [
 ] as const;
 
 export type Permission = typeof PERMISSIONS[number];
+export type RolePermission = Permission | '*';
 
-export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
+export const ROLE_PERMISSIONS: Record<string, RolePermission[]> = {
   owner: ['*'],
   admin: ['accounts:read', 'accounts:manage', 'messages:read', 'messages:send', 'contacts:read', 'groups:read', 'automation:read', 'automation:manage', 'system:read'],
   operator: ['accounts:read', 'messages:read', 'messages:send', 'contacts:read', 'groups:read', 'automation:read'],
   readonly: ['accounts:read', 'messages:read', 'contacts:read', 'groups:read'],
 };
 
-export function getPermissionsForRole(role: string): Permission[] {
+export function getPermissionsForRole(role: string): RolePermission[] {
   return ROLE_PERMISSIONS[role] ?? [];
 }
 
-export function hasPermission(permissions: Permission[], required: Permission): boolean {
+export function hasPermission(permissions: RolePermission[], required: Permission): boolean {
   return permissions.includes('*') || permissions.includes(required);
 }
