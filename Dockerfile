@@ -33,6 +33,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
 COPY --from=builder --chown=nodejs:nodejs /app/drizzle.config.ts ./
 
+RUN mkdir -p /app/storage/sessions /app/storage/media /app/storage/logs && \\
+    chown -R nodejs:nodejs /app/storage
+
 USER nodejs
 
 EXPOSE 3000 3001
