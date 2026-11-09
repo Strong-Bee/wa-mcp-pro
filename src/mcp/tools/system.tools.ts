@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { ToolModuleServer } from '../tool-module.js';
 import { z } from 'zod';
 import { getLogger } from '../../core/logger.js';
 import { getConfig } from '../../config/env.js';
@@ -17,7 +17,7 @@ const metricsSchema = z.object({
   account_id: z.string().uuid().optional(),
 });
 
-export function registerSystemTools(server: Server): void {
+export function registerSystemTools(server: ToolModuleServer): void {
   server.setRequestHandler('tools/list', async () => ({
     tools: [
       {
