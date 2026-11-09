@@ -1,19 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { getConfig } from '../../config/env.js';
 import { validateApiKey } from '../../security/index.js';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
 
 export async function authMiddleware(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', async (request: FastifyRequest) => {
-    const config = getConfig();
     const authHeader = request.headers.authorization;
-
-    // Local development remains convenient, but supplying a token always triggers validation.
-    if (!authHeader && config.NODE_ENV === 'development') {
-      request.apiKey = null;
-      return;
-    }
-
     const match = typeof authHeader === 'string'
       ? /^Bearer\s+(.+)$/i.exec(authHeader.trim())
       : null;
