@@ -67,7 +67,8 @@ export function getRelativeTime(from: Date, to: Date = new Date()): string {
   const diff = to.getTime() - from.getTime();
   const absDiff = Math.abs(diff);
 
-  if (absDiff < 60000) return 'just now';
+  if (absDiff < 10000) return 'just now';
+  if (absDiff < 60000) return Math.floor(absDiff / 1000) + 's ago';
   if (absDiff < 3600000) return `${Math.floor(absDiff / 60000)}m ago`;
   if (absDiff < 86400000) return `${Math.floor(absDiff / 3600000)}h ago`;
   if (absDiff < 604800000) return `${Math.floor(absDiff / 86400000)}d ago`;
