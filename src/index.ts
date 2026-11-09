@@ -34,12 +34,20 @@ async function main(): Promise<void> {
 
     if (config.MCP_TRANSPORT === 'http' || config.MCP_TRANSPORT === 'hybrid') {
       const transport = await createStreamableHTTPTransport();
-      const handleMcpRequest = async (request: Parameters<typeof transport.handleRequest>[0], reply: Parameters<typeof transport.handleRequest>[1]) => {
-        await transport.handleRequest(request, reply);
-      };
-
-      app.route({ method: 'ALL', url: '/mcp', handler: handleMcpRequest });
-      app.route({ method: 'ALL', url: '/mcp/*', handler: handleMcpRequest });
+      app.route({
+        method: 'ALL',
+        url: '/mcp',
+        handler: async (request, reply) => {
+          await transport.handleRequest(request.raw, reply.raw);
+        },
+      });
+      app.route({
+        method: 'ALL',
+        url: '/mcp/*',
+        handler: async (request, reply) => {
+          await transport.handleRequest(request.raw, reply.raw);
+        },
+      });
     }
 
     await startAPIServer(app);
