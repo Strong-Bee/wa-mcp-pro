@@ -1,12 +1,12 @@
 import type { FastifyRequest } from 'fastify';
-import { hasPermission, PERMISSIONS, type Permission } from '../../security/api-key.js';
+import { hasPermission, PERMISSIONS, type Permission, type RolePermission } from '../../security/api-key.js';
 import { AppError, ERROR_CODES } from '../../core/errors.js';
 
-function readPermissions(value: unknown): Permission[] {
+function readPermissions(value: unknown): RolePermission[] {
   try {
     const parsed: unknown = typeof value === 'string' ? JSON.parse(value) : value;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((permission): permission is Permission =>
+    return parsed.filter((permission): permission is RolePermission =>
       typeof permission === 'string' &&
       (permission === '*' || PERMISSIONS.includes(permission as Permission))
     );
@@ -15,7 +15,7 @@ function readPermissions(value: unknown): Permission[] {
   }
 }
 
-function getRequestPermissions(request: FastifyRequest): Permission[] {
+function getRequestPermissions(request: FastifyRequest): RolePermission[] {
   const apiKey = request.apiKey as { permissions?: unknown } | null;
   if (!apiKey) {
     throw new AppError(ERROR_CODES.MCP_AUTH_FAILED, 'Authentication required', 401);
