@@ -409,6 +409,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
+<<<<<<< HEAD
 **WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#   w a - m c p - p r o 
  
  
+=======
+**WA-MCP Pro** - Connecting WhatsApp to the AI ecosystem.#
+>>>>>>> 099d0ae6c4eb8791a3a1f2240c1f0a0c7bdccad8
